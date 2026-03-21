@@ -90,4 +90,4 @@ cp /tmp/mlx_venv/lib/python3.*/site-packages/mlx/lib/mlx.metallib .build/release
 
 ## License
 
-Apache 2.0
+MIT
