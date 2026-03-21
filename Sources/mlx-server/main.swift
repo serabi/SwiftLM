@@ -33,8 +33,23 @@ struct MLXServer: AsyncParsableCommand {
     @Option(name: .long, help: "Host to bind")
     var host: String = "127.0.0.1"
 
-    @Option(name: .long, help: "Max tokens to generate per request")
+    @Option(name: .long, help: "Max tokens to generate per request (default)")
     var maxTokens: Int = 2048
+
+    @Option(name: .long, help: "Context window size (KV cache). When set, uses sliding window cache")
+    var ctxSize: Int?
+
+    @Option(name: .long, help: "Default sampling temperature (0 = greedy, overridable per-request)")
+    var temp: Float = 0.6
+
+    @Option(name: .long, help: "Default top-p nucleus sampling (overridable per-request)")
+    var topP: Float = 1.0
+
+    @Option(name: .long, help: "Repetition penalty factor (overridable per-request)")
+    var repeatPenalty: Float?
+
+    @Option(name: .long, help: "Number of parallel request slots")
+    var parallel: Int = 1
 
     mutating func run() async throws {
         print("[mlx-server] Loading model: \(model)")
@@ -51,7 +66,20 @@ struct MLXServer: AsyncParsableCommand {
 
         print("[mlx-server] Model loaded. Starting HTTP server on \(host):\(port)")
 
-        let maxTok = self.maxTokens
+        // ── Capture CLI defaults ──
+        let defaultMaxTokens = self.maxTokens
+        let defaultCtxSize = self.ctxSize
+        let defaultTemp = self.temp
+        let defaultTopP = self.topP
+        let defaultRepeatPenalty = self.repeatPenalty
+        let parallelSlots = self.parallel
+
+        // ── Concurrency limiter ──
+        let semaphore = AsyncSemaphore(limit: parallelSlots)
+
+        let ctxSizeStr = defaultCtxSize.map { String($0) } ?? "model_default"
+        let penaltyStr = defaultRepeatPenalty.map { String($0) } ?? "disabled"
+        print("[mlx-server] Config: ctx_size=\(ctxSizeStr), temp=\(defaultTemp), top_p=\(defaultTopP), repeat_penalty=\(penaltyStr), parallel=\(parallelSlots)")
 
         // ── Build Hummingbird router ──
         let router = Router()
@@ -86,7 +114,20 @@ struct MLXServer: AsyncParsableCommand {
 
             let chatReq = try JSONDecoder().decode(ChatCompletionRequest.self, from: bodyData)
             let isStream = chatReq.stream ?? false
-            let tokenLimit = chatReq.maxTokens ?? maxTok
+
+            // ── Merge per-request overrides with CLI defaults ──
+            let tokenLimit = chatReq.maxTokens ?? defaultMaxTokens
+            let temperature = chatReq.temperature.map(Float.init) ?? defaultTemp
+            let topP = chatReq.topP.map(Float.init) ?? defaultTopP
+            let repeatPenalty = chatReq.repetitionPenalty.map(Float.init) ?? defaultRepeatPenalty
+
+            let params = GenerateParameters(
+                maxTokens: tokenLimit,
+                maxKVSize: defaultCtxSize,
+                temperature: temperature,
+                topP: topP,
+                repetitionPenalty: repeatPenalty
+            )
 
             // Convert request messages → Chat.Message
             let chatMessages: [Chat.Message] = chatReq.messages.compactMap { msg in
@@ -97,12 +138,11 @@ struct MLXServer: AsyncParsableCommand {
                 }
             }
 
+            // ── Acquire slot (concurrency limiter) ──
+            await semaphore.wait()
+
             let userInput = UserInput(chat: chatMessages)
             let lmInput = try await container.prepare(input: userInput)
-            let params = GenerateParameters(
-                maxTokens: tokenLimit,
-                temperature: Float(chatReq.temperature ?? 0.7)
-            )
             let stream = try await container.generate(input: lmInput, parameters: params)
 
             if isStream {
@@ -122,6 +162,7 @@ struct MLXServer: AsyncParsableCommand {
                         }
                     }
                     cont.finish()
+                    await semaphore.signal()
                 }
                 return Response(
                     status: .ok,
@@ -139,6 +180,7 @@ struct MLXServer: AsyncParsableCommand {
                         break
                     }
                 }
+                await semaphore.signal()
 
                 let resp = ChatCompletionResponse(
                     id: "chatcmpl-\(UUID().uuidString)",
@@ -170,6 +212,38 @@ struct MLXServer: AsyncParsableCommand {
 
         print("[mlx-server] ✅ Ready. Listening on http://\(host):\(port)")
         try await app.runService()
+    }
+}
+
+// ── AsyncSemaphore — lightweight concurrency limiter ─────────────────────────
+
+actor AsyncSemaphore {
+    private let limit: Int
+    private var count: Int
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    init(limit: Int) {
+        self.limit = limit
+        self.count = limit
+    }
+
+    func wait() async {
+        if count > 0 {
+            count -= 1
+            return
+        }
+        await withCheckedContinuation { continuation in
+            waiters.append(continuation)
+        }
+    }
+
+    func signal() {
+        if waiters.isEmpty {
+            count = min(count + 1, limit)
+        } else {
+            let waiter = waiters.removeFirst()
+            waiter.resume()
+        }
     }
 }
 
@@ -224,11 +298,14 @@ struct ChatCompletionRequest: Decodable {
     let stream: Bool?
     let maxTokens: Int?
     let temperature: Double?
+    let topP: Double?
+    let repetitionPenalty: Double?
 
     enum CodingKeys: String, CodingKey {
-        case model, messages, stream
+        case model, messages, stream, temperature
         case maxTokens = "max_tokens"
-        case temperature
+        case topP = "top_p"
+        case repetitionPenalty = "repetition_penalty"
     }
 }
 
