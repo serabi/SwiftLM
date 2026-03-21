@@ -44,6 +44,21 @@ jobs:
           echo "full=b${BUILD_NUMBER}-${SHORT_HASH}" >> $GITHUB_OUTPUT
           echo "Build: b${BUILD_NUMBER} (${SHORT_HASH})"
 
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Find the previous release tag
+          PREV_TAG=$(git tag --sort=-creatordate | head -1 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            # First release — all commits
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges -20)
+          else
+            CHANGELOG=$(git log "${PREV_TAG}..HEAD" --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          # Write to file (multi-line safe)
+          echo "$CHANGELOG" > /tmp/changelog.txt
+          echo "Generated changelog with $(echo "$CHANGELOG" | wc -l | tr -d ' ') entries"
+
       - name: Build (Release)
         run: swift build -c release
 
@@ -68,26 +83,45 @@ jobs:
           path: mlx-server-${{ steps.tag.outputs.name }}-macos-arm64.tar.gz
           retention-days: 90
 
+      - name: Prepare release notes
+        id: notes
+        run: |
+          CHANGELOG=$(cat /tmp/changelog.txt)
+          cat > /tmp/release_notes.md << 'RELEASE_EOF'
+          ## mlx-server ${{ steps.tag.outputs.full }}
+
+          <details open>
+
+          ${{ github.event.head_commit.message }}
+
+          </details>
+
+          ### Changelog
+
+          RELEASE_EOF
+          cat /tmp/changelog.txt >> /tmp/release_notes.md
+          cat >> /tmp/release_notes.md << 'RELEASE_EOF'
+
+          ### Download
+
+          - [macOS Apple Silicon (arm64)](https://github.com/SharpAI/mlx-server/releases/download/${{ steps.tag.outputs.name }}/mlx-server-${{ steps.tag.outputs.name }}-macos-arm64.tar.gz)
+
+          ### Quick Start
+          ```bash
+          tar -xzf mlx-server-${{ steps.tag.outputs.name }}-macos-arm64.tar.gz
+          ./mlx-server --model mlx-community/Qwen2.5-3B-Instruct-4bit --port 5413
+          ```
+
+          > **Note:** Requires `mlx.metallib` next to the binary for GPU compute. See [README](https://github.com/SharpAI/mlx-server#metal-shader-library) for setup.
+          RELEASE_EOF
+
       - name: Create release
         if: ${{ github.event_name == 'push' || github.event.inputs.create_release == 'true' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.name }}
           name: "mlx-server ${{ steps.tag.outputs.name }}"
-          body: |
-            ## mlx-server ${{ steps.tag.outputs.full }}
-
-            Native Swift MLX server with OpenAI-compatible API for Apple Silicon.
-
-            **Commit:** ${{ github.sha }}
-
-            ### Quick Start
-            ```bash
-            tar -xzf mlx-server-${{ steps.tag.outputs.name }}-macos-arm64.tar.gz
-            ./mlx-server --model mlx-community/Qwen2.5-3B-Instruct-4bit --port 5413
-            ```
-
-            > **Note:** Requires `mlx.metallib` next to the binary for GPU compute. See [README](https://github.com/SharpAI/mlx-server#metal-shader-library) for setup.
+          body_path: /tmp/release_notes.md
           files: |
             mlx-server-${{ steps.tag.outputs.name }}-macos-arm64.tar.gz
           draft: false
