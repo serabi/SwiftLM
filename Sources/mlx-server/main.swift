@@ -56,7 +56,17 @@ struct MLXServer: AsyncParsableCommand {
 
     mutating func run() async throws {
         print("[mlx-server] Loading model: \(model)")
-        let modelId = model
+        // Clean model name for API responses: if it's a filesystem path,
+        // extract last 2 path components (e.g. "mlx-community/Qwen3.5-9B-MLX-4bit")
+        let modelId: String = {
+            if model.contains("/") && FileManager.default.fileExists(atPath: model) {
+                let components = model.split(separator: "/")
+                if components.count >= 2 {
+                    return components.suffix(2).joined(separator: "/")
+                }
+            }
+            return model
+        }()
 
         // ── Load model ──
         // Auto-detect: if --model points to an existing local directory, load
