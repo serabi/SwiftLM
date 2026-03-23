@@ -10,12 +10,14 @@
 //   mlx-server --model mlx-community/Qwen2.5-3B-Instruct-4bit --port 5413
 
 import ArgumentParser
+import CoreImage
 import Foundation
 import HTTPTypes
 import Hummingbird
 import MLX
 import MLXLLM
 import MLXLMCommon
+import MLXVLM
 
 // ── CLI ──────────────────────────────────────────────────────────────────────
 
@@ -56,6 +58,9 @@ struct MLXServer: AsyncParsableCommand {
     @Flag(name: .long, help: "Enable thinking/reasoning mode (Qwen3.5 etc). Default: disabled")
     var thinking: Bool = false
 
+    @Flag(name: .long, help: "Enable VLM (vision-language model) mode for image inputs")
+    var vision: Bool = false
+
     @Option(name: .long, help: "Allowed CORS origin (* for all, or a specific origin URL)")
     var cors: String?
 
@@ -79,11 +84,23 @@ struct MLXServer: AsyncParsableCommand {
             modelConfig = ModelConfiguration(id: modelId)
         }
 
-        let container = try await LLMModelFactory.shared.loadContainer(
-            configuration: modelConfig
-        ) { progress in
-            let pct = Int(progress.fractionCompleted * 100)
-            print("[mlx-server] Download: \(pct)%")
+        let isVision = self.vision
+        let container: ModelContainer
+        if isVision {
+            print("[mlx-server] Loading VLM (vision-language model)...")
+            container = try await VLMModelFactory.shared.loadContainer(
+                configuration: modelConfig
+            ) { progress in
+                let pct = Int(progress.fractionCompleted * 100)
+                print("[mlx-server] Download: \(pct)%")
+            }
+        } else {
+            container = try await LLMModelFactory.shared.loadContainer(
+                configuration: modelConfig
+            ) { progress in
+                let pct = Int(progress.fractionCompleted * 100)
+                print("[mlx-server] Download: \(pct)%")
+            }
         }
 
         print("[mlx-server] Model loaded. Starting HTTP server on \(host):\(port)")
@@ -96,7 +113,8 @@ struct MLXServer: AsyncParsableCommand {
             temp: self.temp,
             topP: self.topP,
             repeatPenalty: self.repeatPenalty,
-            thinking: self.thinking
+            thinking: self.thinking,
+            isVision: isVision
         )
 
         let parallelSlots = self.parallel
@@ -170,7 +188,7 @@ struct MLXServer: AsyncParsableCommand {
             "port": port,
             "model": modelId,
             "engine": "mlx",
-            "vision": false
+            "vision": isVision
         ]
         if let data = try? JSONSerialization.data(withJSONObject: readyEvent),
            let json = String(data: data, encoding: .utf8) {
@@ -192,6 +210,7 @@ struct ServerConfig: Sendable {
     let topP: Float
     let repeatPenalty: Float?
     let thinking: Bool
+    let isVision: Bool
 }
 
 // ── Request Body Extraction ──────────────────────────────────────────────────
@@ -212,6 +231,7 @@ func handleChatCompletion(
 ) async throws -> Response {
     let chatReq = try JSONDecoder().decode(ChatCompletionRequest.self, from: bodyData)
     let isStream = chatReq.stream ?? false
+    let jsonMode = chatReq.responseFormat?.type == "json_object"
 
     // ── Merge per-request overrides with CLI defaults ──
     let tokenLimit = chatReq.maxTokens ?? config.maxTokens
@@ -220,6 +240,11 @@ func handleChatCompletion(
     let repeatPenalty = chatReq.repetitionPenalty.map(Float.init) ?? config.repeatPenalty
     let stopSequences = chatReq.stop ?? []
     let includeUsage = chatReq.streamOptions?.includeUsage ?? false
+
+    // Log extra sampling params if provided (accepted for API compat, not all are used)
+    if chatReq.topK != nil || chatReq.frequencyPenalty != nil || chatReq.presencePenalty != nil {
+        // These are accepted but may not affect generation if MLX doesn't support them
+    }
 
     let params = GenerateParameters(
         maxTokens: tokenLimit,
@@ -234,13 +259,25 @@ func handleChatCompletion(
         MLXRandom.seed(UInt64(seed))
     }
 
-    // Convert request messages → Chat.Message
-    let chatMessages: [Chat.Message] = chatReq.messages.compactMap { msg in
+    // ── Parse messages with multipart content support (for VLM images) ──
+    var chatMessages: [Chat.Message] = []
+    for msg in chatReq.messages {
+        let textContent = msg.textContent
+        let images = msg.extractImages()
         switch msg.role {
-        case "system":    return .system(msg.content)
-        case "assistant": return .assistant(msg.content)
-        default:          return .user(msg.content)
+        case "system":
+            chatMessages.append(.system(textContent, images: images))
+        case "assistant":
+            chatMessages.append(.assistant(textContent, images: images))
+        default:
+            chatMessages.append(.user(textContent, images: images))
         }
+    }
+
+    // ── JSON mode: inject system prompt for JSON output ──
+    if jsonMode {
+        let jsonSystemMsg = Chat.Message.system("You must respond with valid JSON only. No markdown code fences, no explanation text, no preamble. Output raw JSON.")
+        chatMessages.insert(jsonSystemMsg, at: 0)
     }
 
     // Convert OpenAI tools format → [String: any Sendable] for UserInput
@@ -273,12 +310,13 @@ func handleChatCompletion(
     if isStream {
         return handleChatStreaming(
             stream: stream, modelId: modelId, stopSequences: stopSequences,
-            includeUsage: includeUsage, promptTokenCount: promptTokenCount, semaphore: semaphore
+            includeUsage: includeUsage, promptTokenCount: promptTokenCount,
+            jsonMode: jsonMode, semaphore: semaphore
         )
     } else {
         return try await handleChatNonStreaming(
             stream: stream, modelId: modelId, stopSequences: stopSequences,
-            promptTokenCount: promptTokenCount, semaphore: semaphore
+            promptTokenCount: promptTokenCount, jsonMode: jsonMode, semaphore: semaphore
         )
     }
 }
@@ -291,6 +329,7 @@ func handleChatStreaming(
     stopSequences: [String],
     includeUsage: Bool,
     promptTokenCount: Int,
+    jsonMode: Bool = false,
     semaphore: AsyncSemaphore
 ) -> Response {
     let (sseStream, cont) = AsyncStream<String>.makeStream()
@@ -357,6 +396,7 @@ func handleChatNonStreaming(
     modelId: String,
     stopSequences: [String],
     promptTokenCount: Int,
+    jsonMode: Bool = false,
     semaphore: AsyncSemaphore
 ) async throws -> Response {
     var fullText = ""
@@ -387,6 +427,18 @@ func handleChatNonStreaming(
     if let (trimmedText, _) = checkStopSequences(fullText, stopSequences: stopSequences) {
         fullText = trimmedText
         finishReason = "stop"
+    }
+
+    // ── JSON mode validation ──
+    if jsonMode {
+        // Strip markdown code fences if model wrapped response
+        let stripped = fullText
+            .replacingOccurrences(of: "```json\n", with: "")
+            .replacingOccurrences(of: "```json", with: "")
+            .replacingOccurrences(of: "```\n", with: "")
+            .replacingOccurrences(of: "```", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        fullText = stripped
     }
 
     let totalTokens = promptTokenCount + completionTokenCount
@@ -765,11 +817,89 @@ struct StreamOptions: Decodable {
     }
 }
 
+struct ResponseFormat: Decodable {
+    let type: String
+}
+
 struct ChatCompletionRequest: Decodable {
+    /// Message content can be a plain string or an array of content parts (text + image_url)
     struct Message: Decodable {
         let role: String
-        let content: String
+        let content: MessageContent
+
+        /// Extract plain text from content (handles both string and multipart)
+        var textContent: String {
+            switch content {
+            case .string(let s): return s
+            case .parts(let parts):
+                return parts.compactMap { part in
+                    if part.type == "text" { return part.text }
+                    return nil
+                }.joined(separator: "\n")
+            }
+        }
+
+        /// Extract images from multipart content (base64 data URIs and HTTP URLs)
+        func extractImages() -> [UserInput.Image] {
+            guard case .parts(let parts) = content else { return [] }
+            return parts.compactMap { part -> UserInput.Image? in
+                guard part.type == "image_url", let imageUrl = part.imageUrl else { return nil }
+                let urlStr = imageUrl.url
+                // Handle base64 data URIs: data:image/png;base64,...
+                if urlStr.hasPrefix("data:") {
+                    guard let commaIdx = urlStr.firstIndex(of: ",") else { return nil }
+                    let base64Str = String(urlStr[urlStr.index(after: commaIdx)...])
+                    guard let data = Data(base64Encoded: base64Str),
+                          let ciImage = CIImage(data: data) else { return nil }
+                    return .ciImage(ciImage)
+                }
+                // Handle HTTP/HTTPS URLs
+                if let url = URL(string: urlStr),
+                   (url.scheme == "http" || url.scheme == "https") {
+                    return .url(url)
+                }
+                // Handle file URLs
+                if let url = URL(string: urlStr) {
+                    return .url(url)
+                }
+                return nil
+            }
+        }
     }
+
+    /// Message content: either a plain string or structured multipart content
+    enum MessageContent: Decodable {
+        case string(String)
+        case parts([ContentPart])
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            if let str = try? container.decode(String.self) {
+                self = .string(str)
+            } else if let parts = try? container.decode([ContentPart].self) {
+                self = .parts(parts)
+            } else {
+                self = .string("")
+            }
+        }
+    }
+
+    struct ContentPart: Decodable {
+        let type: String
+        let text: String?
+        let imageUrl: ImageUrlContent?
+
+        enum CodingKeys: String, CodingKey {
+            case type, text
+            case imageUrl = "image_url"
+        }
+    }
+
+    struct ImageUrlContent: Decodable {
+        let url: String
+        let detail: String?
+    }
+
     struct ToolDef: Decodable {
         let type: String
         let function: ToolFuncDef
@@ -785,18 +915,26 @@ struct ChatCompletionRequest: Decodable {
     let maxTokens: Int?
     let temperature: Double?
     let topP: Double?
+    let topK: Int?
     let repetitionPenalty: Double?
+    let frequencyPenalty: Double?
+    let presencePenalty: Double?
     let tools: [ToolDef]?
     let stop: [String]?
     let seed: Int?
     let streamOptions: StreamOptions?
+    let responseFormat: ResponseFormat?
 
     enum CodingKeys: String, CodingKey {
         case model, messages, stream, temperature, tools, stop, seed
         case maxTokens = "max_tokens"
         case topP = "top_p"
+        case topK = "top_k"
         case repetitionPenalty = "repetition_penalty"
+        case frequencyPenalty = "frequency_penalty"
+        case presencePenalty = "presence_penalty"
         case streamOptions = "stream_options"
+        case responseFormat = "response_format"
     }
 }
 

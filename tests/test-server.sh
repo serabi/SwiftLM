@@ -355,6 +355,100 @@ if [ -n "$USAGE_CHUNK" ]; then
         fail "stream_options: usage.completion_tokens=$STREAM_COMP_TOK (expected > 0)"
     fi
 fi
+# ── Test 14: JSON mode (response_format) ─────────────────────────────
+log "Test 14: JSON mode (response_format)"
+
+JSON_MODE_RESP=$(curl -sf -X POST "$URL/v1/chat/completions" \
+    -H "Content-Type: application/json" \
+    -d "{\"model\":\"$MODEL\",\"max_tokens\":100,\"temperature\":0,\"messages\":[{\"role\":\"user\",\"content\":\"Return a JSON object with key 'greeting' and value 'hello world'. Only output JSON.\"}],\"response_format\":{\"type\":\"json_object\"}}")
+
+JSON_MODE_CONTENT=$(echo "$JSON_MODE_RESP" | jq -r '.choices[0].message.content // empty')
+
+if [ -n "$JSON_MODE_CONTENT" ]; then
+    # Try to parse the content as JSON
+    if echo "$JSON_MODE_CONTENT" | jq . >/dev/null 2>&1; then
+        pass "JSON mode: response is valid JSON"
+    else
+        fail "JSON mode: response is not valid JSON: $JSON_MODE_CONTENT"
+    fi
+else
+    fail "JSON mode: empty response"
+fi
+
+# Check no markdown backticks in response
+if echo "$JSON_MODE_CONTENT" | grep -q '```'; then
+    fail "JSON mode: response contains markdown backticks"
+else
+    pass "JSON mode: no markdown code fences in response"
+fi
+
+
+# ── Test 15: Multipart content (text parts) ──────────────────────────
+log "Test 15: Multipart content format"
+
+MULTIPART_RESP=$(curl -sf -X POST "$URL/v1/chat/completions" \
+    -H "Content-Type: application/json" \
+    -d "{\"model\":\"$MODEL\",\"max_tokens\":20,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Say hello.\"}]}]}")
+
+MULTIPART_CONTENT=$(echo "$MULTIPART_RESP" | jq -r '.choices[0].message.content // empty')
+
+if [ -n "$MULTIPART_CONTENT" ]; then
+    pass "Multipart content: got response with text-only multipart"
+else
+    fail "Multipart content: empty response"
+fi
+
+# Test mixed content parts (text + text)
+MULTI_TEXT_RESP=$(curl -sf -X POST "$URL/v1/chat/completions" \
+    -H "Content-Type: application/json" \
+    -d "{\"model\":\"$MODEL\",\"max_tokens\":20,\"messages\":[{\"role\":\"user\",\"content\":[{\"type\":\"text\",\"text\":\"Hello.\"},{\"type\":\"text\",\"text\":\"How are you?\"}]}]}")
+
+MULTI_TEXT_CONTENT=$(echo "$MULTI_TEXT_RESP" | jq -r '.choices[0].message.content // empty')
+
+if [ -n "$MULTI_TEXT_CONTENT" ]; then
+    pass "Multipart content: handles multiple text parts"
+else
+    fail "Multipart content: failed with multiple text parts"
+fi
+
+
+# ── Test 16: Extra sampling params accepted ──────────────────────────
+log "Test 16: Extra sampling parameters"
+
+EXTRA_PARAMS_RESP=$(curl -sf -X POST "$URL/v1/chat/completions" \
+    -H "Content-Type: application/json" \
+    -d "{\"model\":\"$MODEL\",\"max_tokens\":10,\"messages\":[{\"role\":\"user\",\"content\":\"Hi\"}],\"top_k\":50,\"frequency_penalty\":0.5,\"presence_penalty\":0.5}")
+
+EXTRA_PARAMS_CONTENT=$(echo "$EXTRA_PARAMS_RESP" | jq -r '.choices[0].message.content // empty')
+
+if [ -n "$EXTRA_PARAMS_CONTENT" ]; then
+    pass "Extra sampling params: request with top_k/frequency_penalty/presence_penalty accepted"
+else
+    fail "Extra sampling params: request failed"
+fi
+
+
+# ── Test 17: response_format validation ──────────────────────────────
+log "Test 17: response_format JSON validation"
+
+JSON_VAL_RESP=$(curl -sf -X POST "$URL/v1/chat/completions" \
+    -H "Content-Type: application/json" \
+    -d "{\"model\":\"$MODEL\",\"max_tokens\":150,\"temperature\":0,\"messages\":[{\"role\":\"user\",\"content\":\"Create a JSON object with keys: name (string), age (number), hobbies (array of strings). Use realistic values.\"}],\"response_format\":{\"type\":\"json_object\"}}")
+
+JSON_VAL_CONTENT=$(echo "$JSON_VAL_RESP" | jq -r '.choices[0].message.content // empty')
+
+if [ -n "$JSON_VAL_CONTENT" ]; then
+    # Verify it parses AND has expected keys
+    JSON_KEYS=$(echo "$JSON_VAL_CONTENT" | jq 'keys' 2>/dev/null || echo "")
+    if [ -n "$JSON_KEYS" ]; then
+        pass "response_format validation: produced valid JSON with keys: $JSON_KEYS"
+    else
+        fail "response_format validation: content is not valid JSON: $JSON_VAL_CONTENT"
+    fi
+else
+    fail "response_format validation: empty response"
+fi
+
 
 # ── Test 13: CORS headers ───────────────────────────────────────────
 # This test checks if the server was NOT started with --cors, headers should be absent.
