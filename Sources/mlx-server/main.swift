@@ -199,9 +199,12 @@ struct MLXServer: AsyncParsableCommand {
             // ── Acquire slot (concurrency limiter) ──
             await semaphore.wait()
 
-            // Pass enable_thinking to the Jinja chat template via additionalContext
-            // (mirrors llama-server's --chat-template-kwargs '{"enable_thinking":false}')
-            let templateContext: [String: any Sendable]? = thinkingEnabled ? nil : ["enable_thinking": false]
+            // Pass template kwargs analogous to llama-server's --chat-template-kwargs:
+            //   - enable_thinking: false  → Qwen3.5 thinking mode
+            //   - reasoning_effort: "none" → gpt-oss analysis channel (skips chain-of-thought)
+            let templateContext: [String: any Sendable]? = thinkingEnabled
+                ? nil
+                : ["enable_thinking": false, "reasoning_effort": "none"]
             let userInput = UserInput(chat: chatMessages, tools: toolSpecs, additionalContext: templateContext)
             let lmInput = try await container.prepare(input: userInput)
             let stream = try await container.generate(input: lmInput, parameters: params)
@@ -378,42 +381,63 @@ func jsonHeaders() -> HTTPFields {
     HTTPFields([HTTPField(name: .contentType, value: "application/json")])
 }
 
-/// Stateful output filter that strips model-specific special tokens.
-/// In streaming mode, tokens like <|channel|>, "analysis", <|message|> arrive
-/// as separate chunks, so a stateless regex can't match the full pattern.
-/// This filter tracks state to suppress content between <|channel|> and <|message|>.
+/// Stateful output filter for models like gpt-oss that emit structured channels.
+///
+/// gpt-oss output format (each token arrives as a separate streaming chunk):
+///   <|channel|> analysis <|message|> [thinking text...] <|end|>
+///   <|start|> assistant <|channel|> final <|message|> [actual response] <|end|>
+///
+/// This filter suppresses EVERYTHING until the final <|message|> before actual content.
 class OutputFilter {
-    private var suppressing = false  // true when inside <|channel|>...<|message|> block
+    private enum Phase {
+        case preamble       // Before any content — suppress everything
+        case skipRole       // Just saw <|start|>, next token is role name — skip it
+        case channelName    // Saw <|channel|> after role, next token is channel name — skip it
+        case waitMessage    // Saw channel name, waiting for <|message|> to start emitting
+        case emitting       // Past all markers — emit actual content
+    }
 
-    /// Process a single chunk of text. Returns the cleaned text (may be empty).
+    private var phase: Phase = .preamble
+
     func process(_ text: String) -> String {
-        // Check for <|...|> special tokens
-        if text.contains("<|") && text.contains("|>") {
-            // Start suppressing on <|channel|>
+        let isSpecial = text.contains("<|") && text.contains("|>")
+
+        if isSpecial {
+            if text.contains("<|start|>") {
+                phase = .skipRole
+                return ""
+            }
             if text.contains("<|channel|>") {
-                suppressing = true
+                phase = .channelName
                 return ""
             }
-            // Stop suppressing on <|message|>
             if text.contains("<|message|>") {
-                suppressing = false
+                phase = .emitting
                 return ""
             }
-            // Strip any other <|...|> tokens (e.g. <|end|>, <|start|>)
-            let stripped = text.replacingOccurrences(of: #"<\|[^|]+\|>"#, with: "", options: .regularExpression)
-            return suppressing ? "" : stripped
+            // All other special tokens — drop silently
+            return ""
         }
 
-        // While suppressing (between <|channel|> and <|message|>), drop everything
-        if suppressing { return "" }
-
-        // Strip <think>...</think> (may span chunks, but catches single-chunk case)
-        var result = text
-        result = result.replacingOccurrences(of: #"<think>[\s\S]*?</think>"#, with: "", options: .regularExpression)
-        // Also strip standalone <think> or </think> tags
-        result = result.replacingOccurrences(of: "<think>", with: "")
-        result = result.replacingOccurrences(of: "</think>", with: "")
-        return result
+        switch phase {
+        case .preamble:
+            return ""
+        case .skipRole:
+            // "assistant" role token — skip, stay alert for <|channel|>
+            phase = .preamble  // back to suppressing until next special token
+            return ""
+        case .channelName:
+            // "final" or "analysis" etc — skip channel name
+            phase = .waitMessage
+            return ""
+        case .waitMessage:
+            return ""
+        case .emitting:
+            var result = text
+            result = result.replacingOccurrences(of: "<think>", with: "")
+            result = result.replacingOccurrences(of: "</think>", with: "")
+            return result
+        }
     }
 }
 
