@@ -2,7 +2,7 @@ name: Build
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
     branches: [main]
 
@@ -15,6 +15,14 @@ jobs:
       - name: Install Metal Toolchain
         run: xcodebuild -downloadComponent MetalToolchain || true
 
+      - name: Cache Swift packages
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: ${{ runner.os }}-spm-${{ hashFiles('Package.resolved') }}
+          restore-keys: |
+            ${{ runner.os }}-spm-
+
       - name: Resolve dependencies
         run: swift package resolve
 
@@ -25,10 +33,3 @@ jobs:
         run: |
           ls -lh .build/release/mlx-server
           file .build/release/mlx-server
-
-      - name: Upload binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: mlx-server-arm64
-          path: .build/release/mlx-server
-          retention-days: 30
