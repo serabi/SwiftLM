@@ -1015,13 +1015,15 @@ struct ThinkingStateTracker {
         while !buffer.isEmpty {
             switch phase {
             case .responding:
-                if let range = buffer.range(of: "<think>") {
+                let startRange = buffer.range(of: "<thinking>") ?? buffer.range(of: "<think>")
+                if let range = startRange {
                     // Flush text before the tag as response content
                     content += String(buffer[buffer.startIndex..<range.lowerBound])
                     buffer.removeSubrange(buffer.startIndex..<range.upperBound)
                     phase = .thinking
                 } else if buffer.hasSuffix("<") || buffer.hasSuffix("<t") || buffer.hasSuffix("<th") ||
-                          buffer.hasSuffix("<thi") || buffer.hasSuffix("<thin") || buffer.hasSuffix("<think") {
+                          buffer.hasSuffix("<thi") || buffer.hasSuffix("<thin") || buffer.hasSuffix("<think") ||
+                          buffer.hasSuffix("<thinki") || buffer.hasSuffix("<thinkin") || buffer.hasSuffix("<thinking") {
                     // Partial tag — hold in buffer until we know more
                     return (reasoning, content)
                 } else {
@@ -1029,7 +1031,8 @@ struct ThinkingStateTracker {
                     buffer = ""
                 }
             case .thinking:
-                if let range = buffer.range(of: "</think>") {
+                let endRange = buffer.range(of: "</thinking>") ?? buffer.range(of: "</think>")
+                if let range = endRange {
                     // Flush reasoning before the closing tag
                     reasoning += String(buffer[buffer.startIndex..<range.lowerBound])
                     buffer.removeSubrange(buffer.startIndex..<range.upperBound)
@@ -1047,11 +1050,12 @@ struct ThinkingStateTracker {
     }
 
     private func isSuffixOfClosingTag(_ s: String) -> Bool {
-        let tag = "</think>"
-        // Return true if `s` ends with any prefix of `tag` of length >= 1
-        for len in stride(from: min(s.count, tag.count), through: 1, by: -1) {
-            let tagPrefix = String(tag.prefix(len))
-            if s.hasSuffix(tagPrefix) { return true }
+        let tags = ["</think>", "</thinking>"]
+        for tag in tags {
+            for len in stride(from: min(s.count, tag.count), through: 1, by: -1) {
+                let tagPrefix = String(tag.prefix(len))
+                if s.hasSuffix(tagPrefix) { return true }
+            }
         }
         return false
     }
@@ -1346,20 +1350,21 @@ func handleChatNonStreaming(
     )
 }
 
-/// Extracts a `<think>…</think>` block from the start of the text.
 /// Returns (thinkingContent, remainingContent) or (nil, original) if no block found.
 func extractThinkingBlock(from text: String) -> (String?, String) {
-    guard let startRange = text.range(of: "<think>"),
-          let endRange = text.range(of: "</think>") else {
-        // If there's an unclosed <think> block (still thinking when stopped), extract it anyway
-        if let startRange = text.range(of: "<think>") {
+    let startTag = text.range(of: "<thinking>") ?? text.range(of: "<think>")
+    let endTag = text.range(of: "</thinking>") ?? text.range(of: "</think>")
+    
+    guard let startRange = startTag, let endRange = endTag else {
+        // If there's an unclosed <think> or <thinking> block (still thinking when stopped)
+        if let startRange = startTag {
             let thinking = String(text[startRange.upperBound...])
             return (thinking.isEmpty ? nil : thinking, "")
         }
         return (nil, text)
     }
     let thinking = String(text[startRange.upperBound..<endRange.lowerBound])
-    let remaining = String(text[endRange.upperBound...]).trimmingCharacters(in: .newlines)
+    let remaining = String(text[endRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
     return (thinking.isEmpty ? nil : thinking, remaining)
 }
 
