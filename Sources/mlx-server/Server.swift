@@ -192,6 +192,9 @@ struct MLXServer: AsyncParsableCommand {
     @Flag(name: .long, help: "Enable SSD expert streaming for MoE models (Flash-MoE style memory-mapping)")
     var streamExperts: Bool = false
 
+    @Flag(name: .long, help: "Enable TurboQuant KV-cache compression (3-bit PolarQuant+QJL). Compresses KV history > 8192 tokens to ~3.5 bits/token — recommended for 100k+ context. Default: disabled")
+    var turboKV: Bool = false
+
     @Option(name: .long, help: "Chunk size for prefill evaluation (default: 512, lower to prevent GPU timeout on large models)")
     var prefillSize: Int = 512
 
@@ -397,7 +400,8 @@ struct MLXServer: AsyncParsableCommand {
             repeatPenalty: self.repeatPenalty,
             thinking: self.thinking,
             isVision: isVision,
-            prefillSize: self.prefillSize
+            prefillSize: self.prefillSize,
+            turboKV: self.turboKV
         )
 
         let parallelSlots = self.parallel
@@ -425,7 +429,8 @@ struct MLXServer: AsyncParsableCommand {
         let authStr = apiKeyValue != nil ? "enabled" : "disabled"
         let thinkingStr = config.thinking ? "enabled" : "disabled"
         let ssdStr = self.streamExperts ? "enabled" : "disabled"
-        print("[mlx-server] Config: ctx_size=\(ctxSizeStr), temp=\(config.temp), top_p=\(config.topP), repeat_penalty=\(penaltyStr), parallel=\(parallelSlots), cors=\(corsStr), mem_limit=\(memLimitStr), auth=\(authStr), thinking=\(thinkingStr), ssd_stream=\(ssdStr)")
+        let turboKVStr = config.turboKV ? "enabled" : "disabled"
+        print("[mlx-server] Config: ctx_size=\(ctxSizeStr), temp=\(config.temp), top_p=\(config.topP), repeat_penalty=\(penaltyStr), parallel=\(parallelSlots), cors=\(corsStr), mem_limit=\(memLimitStr), auth=\(authStr), thinking=\(thinkingStr), ssd_stream=\(ssdStr), turbo_kv=\(turboKVStr)")
 
         // ── Build Hummingbird router ──
         let router = Router()
@@ -647,6 +652,8 @@ struct ServerConfig: Sendable {
     let thinking: Bool
     let isVision: Bool
     let prefillSize: Int
+    /// When true, each KVCacheSimple layer compresses history > 8192 tokens to 3-bit PolarQuant.
+    let turboKV: Bool
 }
 
 // ── Model Directory Resolution ───────────────────────────────────────────────
@@ -895,6 +902,17 @@ func handleChatCompletion(
     // ── Cache-aware generation ──
     let stream: AsyncStream<Generation> = try await container.perform { context in
         let cache = context.model.newCache(parameters: params)
+
+        // ── TurboQuant: enable 3-bit KV compression on every KVCacheSimple layer ──
+        // This compresses cache history older than 8192 tokens into 3.5-bit Polar+QJL
+        // form, halving KV RAM for long-context (100k+) requests.
+        if config.turboKV {
+            for layer in cache {
+                if let simple = layer as? KVCacheSimple {
+                    simple.turboQuantEnabled = true
+                }
+            }
+        }
 
         // Try to restore cached system prompt KV state
         if let cachedCount = await promptCache.restore(tokenHash: systemHash, into: cache) {
