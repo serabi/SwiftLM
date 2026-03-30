@@ -43,25 +43,6 @@ Reference implementation: [`turboquant_plus`](https://github.com/TheTom/turboqua
 
 ---
 
-## 🆚 Why `mlx-server`? (vs. llama.cpp & python mlx-lm)
-
-| Feature | `mlx-server` (Swift) | `llama.cpp` (Metal) | `python mlx-lm` |
-| :--- | :--- | :--- | :--- |
-| **Backend Math** | Official Apple MLX (Metal) | Custom Metal Shaders | Official Apple MLX |
-| **Target Hardware** | Consumer Apple Silicon | Universal (CPU/Mac) | Consumer Apple Silicon |
-| **Concurrency / GIL** | 🟢 **Zero GIL** (Swift async) | 🟢 **Zero GIL** (C++) | 🔴 **GIL Bottlenecked** (Python) |
-| **Model Format** | Native HF (Safetensors) | GGUF (Requires Conversion) | Native HF (Safetensors) |
-| **MoE Memory Footprint**| 🟢 **Direct SSD Streaming** | 🟡 CPU `mmap` Swapping | 🔴 OS Swap (High pressure) |
-| **KV Cache** | 🟢 **TurboQuantization** | 🟢 Aggressive Quantization | 🟡 Standard Python Hooks |
-| **Dependencies** | None (Single Native Binary) | None (Single Native Binary) | Python Runtime, `pip` |
-
-**The TL;DR:**
-- Use **`llama.cpp`** if you prefer GGUF formats and are running cross-platform on Windows/Linux.
-- Use **`python mlx-lm`** if you are explicitly prototyping ML code or data science scripts in Python.
-- Use **`mlx-server`** if you want the absolute maximum MLX inference performance on macOS for serving an API (e.g. for multi-agent workflows, long-running REST APIs, or local deployment) without the Python GIL blocking simultaneous request streaming.
-
----
-
 ## 💻 Tested Hardware & Benchmarks
 
 To reliably run massive 122B parameter MoE models over SSD streaming, `mlx-server` was designed and benchmarked natively on the following hardware:
