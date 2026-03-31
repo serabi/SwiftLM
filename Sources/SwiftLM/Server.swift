@@ -1194,10 +1194,11 @@ func handleChatStreaming(
                     print("")  // end the real-time token stream line
                     let dur = Date().timeIntervalSince(genStart)
                     let tokPerSec = dur > 0 ? Double(completionTokenCount) / dur : 0
+                    let logContent: Any = hasToolCalls ? NSNull() : fullText
                     let logResp: [String: Any] = [
                         "choices": [[
                             "index": 0,
-                            "message": ["role": "assistant", "content": fullText],
+                            "message": ["role": "assistant", "content": logContent],
                             "finish_reason": reason
                         ]],
                         "usage": [
