@@ -166,6 +166,7 @@ curl http://localhost:5413/v1/chat/completions \
 Built entirely on the hard work of the Apple MLX community.
 - [mlx-swift](https://github.com/ml-explore/mlx-swift) — Apple MLX framework for Swift
 - [Hummingbird](https://github.com/hummingbird-project/hummingbird) — Event-driven Swift HTTP server
+- [flash-moe](https://github.com/danveloper/flash-moe) — Reference for SSD Expert Streaming
 
 ### 🙏 TurboQuant Credits
 
