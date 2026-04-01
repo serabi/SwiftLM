@@ -95,7 +95,18 @@ Then in Xcode:
 ## 🛠️ Quick Start (macOS Server)
 
 ### Fastest: Download Pre-built Binary
-The absolute fastest way to get started is to [download the latest pre-compiled macOS binary](https://github.com/SharpAI/SwiftLM/releases) directly from the Releases page. Just extract it and run!
+
+Download the latest release tarball from the [Releases page](https://github.com/SharpAI/SwiftLM/releases).
+The archive is **self-contained** — `default.metallib` is bundled alongside the binary.
+
+```bash
+tar -xzf SwiftLM-<version>-macos-arm64.tar.gz
+
+# Run from the extracted directory — default.metallib must be co-located with the binary
+./SwiftLM --model mlx-community/Qwen2.5-3B-Instruct-4bit --port 5413
+```
+
+> **⚠️ Metal GPU Error?** If you see `Failed to load the default metallib`, it means `default.metallib` is missing from the directory you are running `SwiftLM` from. Make sure you run the binary **from the extracted folder** and do not move the binary without also moving `default.metallib` alongside it.
 
 ### Build from Source
 
@@ -103,16 +114,16 @@ The absolute fastest way to get started is to [download the latest pre-compiled 
 swift build -c release
 ```
 
-### Run (Downloads model natively on first launch)
+When building from source the Metal shader library is compiled automatically by the Swift build system and placed next to the binary in `.build/release/`. Run from that directory:
 
 ```bash
 .build/release/SwiftLM \
-  --model Qwen3.5-122B-A10B-4bit \
-  --stream-experts true \
+  --model mlx-community/Qwen3.5-122B-A10B-4bit \
+  --stream-experts \
   --port 5413
 ```
 
-*(Note: Add `--stream-experts=true` if you are attempting to run oversized MoE models like Qwen3.5 122B to bypass macOS virtual memory swapping!)*
+*(Add `--stream-experts` when running oversized MoE models like Qwen3.5 122B to bypass macOS virtual memory swapping and stream expert layers directly from NVMe.)*
 
 ---
 

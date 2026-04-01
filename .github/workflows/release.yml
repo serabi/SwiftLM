@@ -69,12 +69,29 @@ jobs:
           file .build/release/SwiftLM
           .build/release/SwiftLM --help || true
 
+      - name: Find and copy default.metallib
+        run: |
+          # The Metal shader library is compiled as part of mlx-swift during
+          # `swift build`. Find it in the build artifacts and copy it to the
+          # repo root so the package step can pick it up.
+          METALLIB=$(find .build -name "default.metallib" | head -1)
+          if [ -z "$METALLIB" ]; then
+            echo "ERROR: default.metallib not found in build artifacts!"
+            exit 1
+          fi
+          echo "Found metallib: $METALLIB"
+          cp "$METALLIB" default.metallib
+          file default.metallib
+
       - name: Package binary
         run: |
           mkdir -p release
           cp .build/release/SwiftLM release/
+          cp default.metallib release/
           cp LICENSE README.md release/
           cd release
+          # Verify the tarball will be self-contained before archiving
+          ls -lh
           tar -czvf ../SwiftLM-${{ steps.tag.outputs.name }}-macos-arm64.tar.gz .
 
       - name: Upload artifact
@@ -110,10 +127,11 @@ jobs:
           ### Quick Start
           ```bash
           tar -xzf SwiftLM-${{ steps.tag.outputs.name }}-macos-arm64.tar.gz
+          # default.metallib is included — run from the extracted directory
           ./SwiftLM --model mlx-community/Qwen2.5-3B-Instruct-4bit --port 5413
           ```
 
-          > **Note:** Requires `mlx.metallib` next to the binary for GPU compute. See [README](https://github.com/SharpAI/SwiftLM#metal-shader-library) for setup.
+          > **Note:** `default.metallib` is bundled in this archive. Keep it in the same directory as the `SwiftLM` binary — Metal GPU compute will fail if it is missing.
           RELEASE_EOF
 
       - name: Create release
