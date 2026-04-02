@@ -52,6 +52,7 @@ ASSETS_BF     = uid()
 # ── App source files (relative to SwiftLMChat/)
 app_sources = [
     ("SwiftLMChat/SwiftLMChatApp.swift",          uid(), uid()),
+    ("SwiftLMChat/Theme.swift",                   uid(), uid()),
     ("SwiftLMChat/Views/RootView.swift",           uid(), uid()),
     ("SwiftLMChat/Views/ChatView.swift",           uid(), uid()),
     ("SwiftLMChat/Views/MessageBubble.swift",      uid(), uid()),

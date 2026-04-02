@@ -227,9 +227,12 @@ public enum ModelCatalog {
         on device: DeviceProfile = .current
     ) -> FitStatus {
         let ram = device.physicalRAMGB
+        // On 6 GB devices: 75% = 4.5 GB comfortable, 90% = 5.4 GB tight.
+        // MoE models with expert streaming can run at up to 3x RAM via NVMe paging.
         if model.ramRequiredGB <= ram * 0.75 { return .fits }
         if model.ramRequiredGB <= ram * 0.90 { return .tight }
-        if model.isMoE && model.ramRequiredGB <= ram * 4.0 { return .requiresFlash }
+        if model.isMoE && model.ramRequiredGB <= ram * 3.0 { return .requiresFlash }
         return .tooLarge
     }
 }
+

@@ -3,149 +3,283 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var viewModel: ChatViewModel
+    @EnvironmentObject private var appearance: AppearanceStore
     @Environment(\.dismiss) private var dismiss
 
-    /// When true, the view is embedded as a tab (no Done button needed on iOS)
+    /// When true, the view is embedded as a tab (no Done button on iOS)
     var isTab: Bool = false
 
+    // iOS-specific: performance mode toggle (read from UserDefaults)
+    @AppStorage("swiftlm.performanceMode") private var performanceMode: Bool = false
+
+    private var ramGB: Double {
+        Double(ProcessInfo.processInfo.physicalMemory) / (1024 * 1024 * 1024)
+    }
+
     var body: some View {
-        Form {
-            // ── Generation ────────────────────────────────────────────────
-            Section {
-                // Temperature
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Label("Temperature", systemImage: "thermometer.medium")
-                        Spacer()
-                        Text(String(format: "%.2f", viewModel.config.temperature))
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                            .font(.callout)
-                    }
-                    Slider(value: Binding(
-                        get: { Double(viewModel.config.temperature) },
-                        set: { viewModel.config.temperature = Float($0) }
-                    ), in: 0...2, step: 0.05)
-                    .tint(.orange)
-                    Text("Higher = more creative, lower = more focused")
-                        .font(.caption2).foregroundStyle(.secondary)
-                }
-                .padding(.vertical, 2)
+        ZStack {
+            SwiftLMTheme.background.ignoresSafeArea()
 
-                // Max Tokens
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Label("Max Tokens", systemImage: "text.word.spacing")
-                        Spacer()
-                        Text("\(viewModel.config.maxTokens)")
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                            .font(.callout)
-                    }
-                    Slider(value: Binding(
-                        get: { Double(viewModel.config.maxTokens) },
-                        set: { viewModel.config.maxTokens = Int($0) }
-                    ), in: 128...8192, step: 128)
-                    .tint(.blue)
+            Form {
+                // ── Generation ────────────────────────────────────────────────
+                Section {
+                    temperatureRow
+                    maxTokensRow
+                    topPRow
+                } header: {
+                    sectionLabel("Generation", icon: "slider.horizontal.3")
                 }
-                .padding(.vertical, 2)
 
-                // Top P
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack {
-                        Label("Top P", systemImage: "chart.bar.xaxis")
-                        Spacer()
-                        Text(String(format: "%.2f", viewModel.config.topP))
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                            .font(.callout)
-                    }
-                    Slider(value: Binding(
-                        get: { Double(viewModel.config.topP) },
-                        set: { viewModel.config.topP = Float($0) }
-                    ), in: 0...1, step: 0.05)
-                    .tint(.purple)
+                // ── Advanced ──────────────────────────────────────────────────
+                Section {
+                    thinkingToggle
+                } header: {
+                    sectionLabel("Advanced", icon: "gearshape.2")
                 }
-                .padding(.vertical, 2)
-            } header: {
-                Label("Generation", systemImage: "slider.horizontal.3")
-            }
 
-            // ── Advanced ──────────────────────────────────────────────────
-            Section {
-                Toggle(isOn: Binding(
-                    get: { viewModel.config.enableThinking },
-                    set: { viewModel.config.enableThinking = $0 }
-                )) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Label("Thinking Mode", systemImage: "brain.head.profile")
-                        Text("Step-by-step reasoning for Qwen3, DeepSeek-R1, and compatible models")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                // ── Appearance ────────────────────────────────────────────────
+                Section {
+                    appearancePicker
+                } header: {
+                    sectionLabel("Appearance", icon: "paintpalette")
+                }
+
+                // ── System Prompt ─────────────────────────────────────────────
+                Section {
+                    TextEditor(text: $viewModel.systemPrompt)
+                        .frame(minHeight: 88)
+                        .font(.callout)
+                        .foregroundStyle(SwiftLMTheme.textPrimary)
+                        .scrollContentBackground(.hidden)
+                        .background(Color.clear)
+                } header: {
+                    sectionLabel("System Prompt", icon: "text.bubble")
+                } footer: {
+                    Text("Injected as the system message before every conversation.")
+                        .font(.caption)
+                        .foregroundStyle(SwiftLMTheme.textTertiary)
+                }
+
+                // ── Performance (iOS-only) ─────────────────────────────────────
+                #if os(iOS)
+                Section {
+                    performanceModeRow
+                    autoOffloadRow
+                } header: {
+                    sectionLabel("Performance", icon: "cpu")
+                } footer: {
+                    Text("Performance Mode loosens the RAM budget from 40% to 55%, allowing larger models on your \(String(format: "%.0f GB", ramGB)) device.")
+                        .font(.caption)
+                        .foregroundStyle(SwiftLMTheme.textTertiary)
+                }
+                #endif
+
+                // ── Reset ─────────────────────────────────────────────────────
+                Section {
+                    Button(role: .destructive) {
+                        viewModel.config = .default
+                        viewModel.systemPrompt = ""
+                    } label: {
+                        HStack {
+                            Spacer()
+                            Label("Reset to Defaults", systemImage: "arrow.counterclockwise")
+                                .foregroundStyle(SwiftLMTheme.error)
+                            Spacer()
+                        }
                     }
                 }
-            } header: {
-                Label("Advanced", systemImage: "gearshape.2")
-            }
 
-            // ── System Prompt ─────────────────────────────────────────────
-            Section {
-                TextEditor(text: $viewModel.systemPrompt)
-                    .frame(minHeight: 88)
-                    .font(.callout)
-            } header: {
-                Label("System Prompt", systemImage: "text.bubble")
-            } footer: {
-                Text("Injected as the system message before every conversation.")
-                    .font(.caption)
-            }
-
-            // ── Reset ─────────────────────────────────────────────────────
-            Section {
-                Button(role: .destructive) {
-                    viewModel.config = .default
-                    viewModel.systemPrompt = ""
-                } label: {
-                    HStack {
-                        Spacer()
-                        Label("Reset to Defaults", systemImage: "arrow.counterclockwise")
-                        Spacer()
-                    }
+                // ── About ─────────────────────────────────────────────────────
+                Section {
+                    aboutRow("SwiftLM Chat", value: "1.0")
+                    aboutRow("Engine", value: "MLX Swift")
+                    aboutRow("Backend", value: "Metal GPU")
+                    aboutRow("Platform", value: {
+                        #if os(iOS)
+                        return "iOS / iPadOS"
+                        #else
+                        return "macOS"
+                        #endif
+                    }())
+                    aboutRow("RAM", value: String(format: "%.0f GB", ramGB))
+                } header: {
+                    sectionLabel("About", icon: "info.circle")
                 }
             }
-
-            // ── About ─────────────────────────────────────────────────────
-            Section {
-                LabeledContent("SwiftLM Chat", value: "1.0")
-                LabeledContent("Engine", value: "MLX Swift")
-                LabeledContent("Backend", value: "Metal GPU")
-                LabeledContent("Platform") {
-                    #if os(iOS)
-                    Text("iOS / iPadOS")
-                        .foregroundStyle(.secondary)
-                    #else
-                    Text("macOS")
-                        .foregroundStyle(.secondary)
-                    #endif
-                }
-            } header: {
-                Label("About", systemImage: "info.circle")
-            }
+            .scrollContentBackground(.hidden)
         }
         .navigationTitle("Settings")
         #if os(iOS)
         .navigationBarTitleDisplayMode(isTab ? .large : .inline)
+        .toolbarBackground(SwiftLMTheme.background.opacity(0.90), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         #endif
         .toolbar {
-            // Show Done button only when presented as a sheet (macOS or modal push)
             if !isTab {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
+                        .foregroundStyle(SwiftLMTheme.accent)
                 }
             }
         }
         #if os(macOS)
-        .frame(width: 420, height: 600)
+        .frame(width: 440, height: 640)
         #endif
+    }
+
+    // MARK: — Row Helpers
+
+    private var temperatureRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Label("Temperature", systemImage: "thermometer.medium")
+                    .foregroundStyle(SwiftLMTheme.textPrimary)
+                Spacer()
+                Text(String(format: "%.2f", viewModel.config.temperature))
+                    .foregroundStyle(SwiftLMTheme.textSecondary)
+                    .monospacedDigit()
+                    .font(.callout)
+            }
+            Slider(value: Binding(
+                get: { Double(viewModel.config.temperature) },
+                set: { viewModel.config.temperature = Float($0) }
+            ), in: 0...2, step: 0.05)
+            .tint(SwiftLMTheme.warning)
+            Text("Higher = more creative, lower = more focused")
+                .font(.caption2)
+                .foregroundStyle(SwiftLMTheme.textTertiary)
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var maxTokensRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Label("Max Tokens", systemImage: "text.word.spacing")
+                    .foregroundStyle(SwiftLMTheme.textPrimary)
+                Spacer()
+                Text("\(viewModel.config.maxTokens)")
+                    .foregroundStyle(SwiftLMTheme.textSecondary)
+                    .monospacedDigit()
+                    .font(.callout)
+            }
+            Slider(value: Binding(
+                get: { Double(viewModel.config.maxTokens) },
+                set: { viewModel.config.maxTokens = Int($0) }
+            ), in: 128...8192, step: 128)
+            .tint(SwiftLMTheme.accent)
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var topPRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Label("Top P", systemImage: "chart.bar.xaxis")
+                    .foregroundStyle(SwiftLMTheme.textPrimary)
+                Spacer()
+                Text(String(format: "%.2f", viewModel.config.topP))
+                    .foregroundStyle(SwiftLMTheme.textSecondary)
+                    .monospacedDigit()
+                    .font(.callout)
+            }
+            Slider(value: Binding(
+                get: { Double(viewModel.config.topP) },
+                set: { viewModel.config.topP = Float($0) }
+            ), in: 0...1, step: 0.05)
+            .tint(SwiftLMTheme.accentSecondary)
+        }
+        .padding(.vertical, 2)
+    }
+
+    private var thinkingToggle: some View {
+        Toggle(isOn: Binding(
+            get: { viewModel.config.enableThinking },
+            set: { viewModel.config.enableThinking = $0 }
+        )) {
+            VStack(alignment: .leading, spacing: 2) {
+                Label("Thinking Mode", systemImage: "brain.head.profile")
+                    .foregroundStyle(SwiftLMTheme.textPrimary)
+                Text("Step-by-step reasoning for Qwen3, DeepSeek-R1, and compatible models")
+                    .font(.caption)
+                    .foregroundStyle(SwiftLMTheme.textTertiary)
+            }
+        }
+        .tint(SwiftLMTheme.accentSecondary)
+    }
+
+    private var appearancePicker: some View {
+        Picker("Color Scheme", selection: $appearance.preference) {
+            HStack {
+                Image(systemName: "moon.fill")
+                Text("Dark")
+            }.tag("dark")
+
+            HStack {
+                Image(systemName: "sun.max.fill")
+                Text("Light")
+            }.tag("light")
+
+            HStack {
+                Image(systemName: "circle.lefthalf.filled")
+                Text("System")
+            }.tag("system")
+        }
+        .pickerStyle(.segmented)
+        .tint(SwiftLMTheme.accent)
+    }
+
+    #if os(iOS)
+    private var performanceModeRow: some View {
+        Toggle(isOn: $performanceMode) {
+            VStack(alignment: .leading, spacing: 2) {
+                Label("Performance Mode", systemImage: "bolt.fill")
+                    .foregroundStyle(SwiftLMTheme.textPrimary)
+                Text("Use 55% RAM budget (vs. 40%) — enables more models on 6 GB devices")
+                    .font(.caption)
+                    .foregroundStyle(SwiftLMTheme.textTertiary)
+            }
+        }
+        .tint(SwiftLMTheme.accent)
+    }
+
+    @State private var tempEngine: InferenceEngine? = nil
+
+    private var autoOffloadRow: some View {
+        // We can't easily get the engine here without prop drilling,
+        // so we persist via UserDefaults and InferenceEngine reads it on next launch.
+        Toggle(isOn: Binding(
+            get: { UserDefaults.standard.bool(forKey: "swiftlm.autoOffload") == false
+                    ? true  // default true
+                    : UserDefaults.standard.bool(forKey: "swiftlm.autoOffload") },
+            set: { UserDefaults.standard.set($0, forKey: "swiftlm.autoOffload") }
+        )) {
+            VStack(alignment: .leading, spacing: 2) {
+                Label("Auto-Unload in Background", systemImage: "iphone.slash")
+                    .foregroundStyle(SwiftLMTheme.textPrimary)
+                Text("Frees GPU memory when the app backgrounds (recommended on iPhone)")
+                    .font(.caption)
+                    .foregroundStyle(SwiftLMTheme.textTertiary)
+            }
+        }
+        .tint(SwiftLMTheme.success)
+    }
+    #endif
+
+    private func aboutRow(_ label: String, value: String) -> some View {
+        HStack {
+            Text(label)
+                .foregroundStyle(SwiftLMTheme.textPrimary)
+            Spacer()
+            Text(value)
+                .foregroundStyle(SwiftLMTheme.textSecondary)
+        }
+    }
+
+    private func sectionLabel(_ title: String, icon: String) -> some View {
+        Label(title, systemImage: icon)
+            .foregroundStyle(SwiftLMTheme.textTertiary)
+            .font(.footnote.weight(.semibold))
+            .textCase(.uppercase)
     }
 }

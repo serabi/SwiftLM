@@ -1,4 +1,4 @@
-// ModelsView.swift — Unified iOS-first Models tab
+// ModelsView.swift — Unified iOS-first Models tab (premium theme)
 // Combines: active model, downloads in progress, downloaded list, catalog, HF search
 import SwiftUI
 
@@ -13,126 +13,158 @@ struct ModelsView: View {
     private var dm: ModelDownloadManager { engine.downloadManager }
 
     var body: some View {
-        ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                // ── 1. Active model hero card ─────────────────────────────
-                activeModelCard
-                    .padding(.horizontal)
-                    .padding(.top, 16)
-                    .padding(.bottom, 12)
+        ZStack {
+            SwiftLMTheme.background.ignoresSafeArea()
 
-                // ── 2. Active downloads (live) ────────────────────────────
-                if !dm.activeDownloads.isEmpty {
-                    sectionHeader("Downloading")
-                    ForEach(Array(dm.activeDownloads.keys), id: \.self) { modelId in
-                        if let progress = dm.activeDownloads[modelId] {
-                            DownloadProgressCard(modelId: modelId, progress: progress)
-                                .padding(.horizontal)
-                                .padding(.bottom, 8)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    // ── 1. Active model hero card ──────────────────────────
+                    activeModelCard
+                        .padding(.horizontal)
+                        .padding(.top, 16)
+                        .padding(.bottom, 14)
+
+                    // ── 2. Active downloads ────────────────────────────────
+                    if !dm.activeDownloads.isEmpty {
+                        sectionHeader("Downloading")
+                        ForEach(Array(dm.activeDownloads.keys), id: \.self) { modelId in
+                            if let progress = dm.activeDownloads[modelId] {
+                                DownloadProgressCard(modelId: modelId, progress: progress)
+                                    .padding(.horizontal)
+                                    .padding(.bottom, 10)
+                            }
                         }
                     }
-                }
 
-                // ── 3. Downloaded models ──────────────────────────────────
-                if !dm.downloadedModels.isEmpty {
-                    sectionHeader("Downloaded (\(dm.downloadedModels.count))")
-                        .padding(.top, 4)
-                    ForEach(dm.downloadedModels) { downloaded in
-                        let entry = ModelCatalog.all.first(where: { $0.id == downloaded.id })
-                        let isActive: Bool = {
-                            if case .ready(let id) = engine.state { return id == downloaded.id }
-                            return false
-                        }()
-                        DownloadedModelRow(
-                            downloaded: downloaded,
-                            entry: entry,
-                            isActive: isActive,
-                            onLoad: { Task { await engine.load(modelId: downloaded.id) } },
-                            onDelete: { try? dm.delete(downloaded.id) }
+                    // ── 3. Downloaded models ───────────────────────────────
+                    if !dm.downloadedModels.isEmpty {
+                        sectionHeader("Downloaded (\(dm.downloadedModels.count))")
+                            .padding(.top, 4)
+                        VStack(spacing: 0) {
+                            ForEach(dm.downloadedModels) { downloaded in
+                                let entry = ModelCatalog.all.first(where: { $0.id == downloaded.id })
+                                let isActive: Bool = {
+                                    if case .ready(let id) = engine.state { return id == downloaded.id }
+                                    return false
+                                }()
+                                DownloadedModelRow(
+                                    downloaded: downloaded,
+                                    entry: entry,
+                                    isActive: isActive,
+                                    onLoad: { Task { await engine.load(modelId: downloaded.id) } },
+                                    onDelete: { try? dm.delete(downloaded.id) }
+                                )
+                                .padding(.horizontal)
+                                if downloaded.id != dm.downloadedModels.last?.id {
+                                    Divider()
+                                        .background(SwiftLMTheme.divider)
+                                        .padding(.leading, 72)
+                                }
+                            }
+                        }
+                        .background(SwiftLMTheme.surface.opacity(0.60))
+                        .clipShape(RoundedRectangle(cornerRadius: SwiftLMTheme.radiusMedium))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: SwiftLMTheme.radiusMedium)
+                                .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)
                         )
                         .padding(.horizontal)
-                        if downloaded.id != dm.downloadedModels.last?.id {
-                            Divider().padding(.leading, 72)
-                        }
+                        .padding(.bottom, 10)
                     }
-                    .padding(.bottom, 8)
-                }
 
-                // ── 4. Catalog — recommended ──────────────────────────────
-                let recommended = dm.modelsForDevice()
-                    .filter { !dm.isDownloaded($0.id) }
-                if !recommended.isEmpty {
-                    sectionHeader("Recommended for your \(String(format: "%.0f GB", device.physicalRAMGB)) device")
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(recommended) { model in
-                                CatalogCard(
+                    // ── 4. Recommended for device ──────────────────────────
+                    let recommended = dm.modelsForDevice()
+                        .filter { !dm.isDownloaded($0.id) }
+                    if !recommended.isEmpty {
+                        sectionHeader("Recommended for \(String(format: "%.0f GB", device.physicalRAMGB)) RAM")
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) {
+                                ForEach(recommended) { model in
+                                    CatalogCard(
+                                        model: model,
+                                        fitStatus: ModelCatalog.fitStatus(for: model, on: device),
+                                        onTap: { handleSelect(model.id) }
+                                    )
+                                }
+                            }
+                            .padding(.horizontal)
+                            .padding(.bottom, 4)
+                        }
+                        .padding(.bottom, 10)
+                    }
+
+                    // ── 5. All Models ──────────────────────────────────────
+                    let others = ModelCatalog.all
+                        .filter { model in
+                            !dm.isDownloaded(model.id) &&
+                            !recommended.contains(where: { $0.id == model.id })
+                        }
+                    if !others.isEmpty {
+                        sectionHeader("All Models")
+                        VStack(spacing: 0) {
+                            ForEach(others) { model in
+                                CatalogListRow(
                                     model: model,
                                     fitStatus: ModelCatalog.fitStatus(for: model, on: device),
                                     onTap: { handleSelect(model.id) }
                                 )
+                                .padding(.horizontal)
+                                if model.id != others.last?.id {
+                                    Divider()
+                                        .background(SwiftLMTheme.divider)
+                                        .padding(.leading, 56)
+                                }
                             }
                         }
-                        .padding(.horizontal)
-                        .padding(.bottom, 4)
-                    }
-                    .padding(.bottom, 8)
-                }
-
-                // ── 5. Catalog — all models ───────────────────────────────
-                let others = ModelCatalog.all
-                    .filter { model in
-                        !dm.isDownloaded(model.id) &&
-                        !recommended.contains(where: { $0.id == model.id })
-                    }
-                if !others.isEmpty {
-                    sectionHeader("All Models")
-                    ForEach(others) { model in
-                        CatalogListRow(
-                            model: model,
-                            fitStatus: ModelCatalog.fitStatus(for: model, on: device),
-                            onTap: { handleSelect(model.id) }
+                        .background(SwiftLMTheme.surface.opacity(0.60))
+                        .clipShape(RoundedRectangle(cornerRadius: SwiftLMTheme.radiusMedium))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: SwiftLMTheme.radiusMedium)
+                                .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)
                         )
                         .padding(.horizontal)
-                        if model.id != others.last?.id {
-                            Divider().padding(.leading, 56)
+                        .padding(.bottom, 10)
+                    }
+
+                    // ── 6. HuggingFace search ──────────────────────────────
+                    Button { showHFSearch = true } label: {
+                        HStack {
+                            Image(systemName: "magnifyingglass")
+                                .foregroundStyle(SwiftLMTheme.accent)
+                            Text("Search HuggingFace MLX models")
+                                .foregroundStyle(SwiftLMTheme.textPrimary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(SwiftLMTheme.textTertiary)
                         }
+                        .padding(14)
+                        .background(SwiftLMTheme.surface.opacity(0.60))
+                        .clipShape(RoundedRectangle(cornerRadius: SwiftLMTheme.radiusMedium))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: SwiftLMTheme.radiusMedium)
+                                .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)
+                        )
                     }
-                    .padding(.bottom, 8)
-                }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
 
-                // ── 6. HuggingFace search ─────────────────────────────────
-                Button {
-                    showHFSearch = true
-                } label: {
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                        Text("Search HuggingFace MLX models")
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding()
-                    .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-                    .foregroundStyle(.primary)
+                    Spacer(minLength: 32)
                 }
-                .buttonStyle(.plain)
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-
-                Spacer(minLength: 32)
             }
         }
-        .background(Color(.systemGroupedBackground))
         .navigationTitle("Models")
+        #if os(iOS)
         .navigationBarTitleDisplayMode(.large)
+        .toolbarBackground(SwiftLMTheme.background.opacity(0.90), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        #endif
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
-                Button {
-                    showManagement = true
-                } label: {
+                Button { showManagement = true } label: {
                     Image(systemName: "externaldrive.badge.minus")
+                        .foregroundStyle(SwiftLMTheme.accent)
                 }
             }
         }
@@ -149,100 +181,35 @@ struct ModelsView: View {
     // MARK: — Helpers
 
     private func sectionHeader(_ title: String) -> some View {
-        Text(title)
-            .font(.footnote.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .textCase(.uppercase)
-            .padding(.horizontal)
-            .padding(.top, 20)
-            .padding(.bottom, 6)
+        HStack(spacing: 8) {
+            Text(title)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(SwiftLMTheme.textTertiary)
+                .textCase(.uppercase)
+            Rectangle()
+                .fill(SwiftLMTheme.divider)
+                .frame(height: 1)
+        }
+        .padding(.horizontal)
+        .padding(.top, 20)
+        .padding(.bottom, 8)
     }
 
     private func handleSelect(_ modelId: String) {
         showHFSearch = false
-        // Don't clear the conversation — user can still read previous messages
-        // while the new model downloads. newConversation() is available from the Chat tab.
         Task { await engine.load(modelId: modelId) }
     }
 }
 
 // MARK: — Active Model Hero Card
 
-private struct ActiveModelHeroCard: View {
-    let modelId: String
-    let entry: ModelEntry?
-    let state: ModelState
-
-    var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            // Gradient background
-            LinearGradient(
-                colors: [Color.teal.opacity(0.8), Color.blue.opacity(0.9)],
-                startPoint: .topLeading, endPoint: .bottomTrailing
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Active Model")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.8))
-                    Spacer()
-                    stateBadge
-                }
-
-                Text(entry?.displayName ?? modelId.components(separatedBy: "/").last ?? modelId)
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(.white)
-                    .lineLimit(2)
-
-                HStack(spacing: 12) {
-                    if let entry {
-                        Label(String(format: "%.1f GB RAM", entry.ramRequiredGB), systemImage: "memorychip")
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.85))
-                        if entry.isMoE {
-                            Label("MoE", systemImage: "square.grid.3x3.fill")
-                                .font(.caption)
-                                .foregroundStyle(.white.opacity(0.85))
-                        }
-                        Label(entry.quantization, systemImage: "slider.horizontal.3")
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.85))
-                    }
-                }
-            }
-            .padding(16)
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 130)
-        .shadow(color: .teal.opacity(0.3), radius: 8, y: 4)
-    }
-
+extension ModelsView {
     @ViewBuilder
-    private var stateBadge: some View {
-        switch state {
-        case .ready(_):
-            Label("Ready", systemImage: "checkmark.circle.fill")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(.white.opacity(0.2), in: Capsule())
-        case .generating:
-            Label("Generating", systemImage: "waveform")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(.white.opacity(0.2), in: Capsule())
-        default:
-            EmptyView()
-        }
+    var activeModelCard: some View {
+        ActiveModelCardView()
+            .environmentObject(engine)
     }
 }
-
-// MARK: — Active Model Card (handles all ModelState cases)
 
 private struct ActiveModelCardView: View {
     @EnvironmentObject private var engine: InferenceEngine
@@ -271,62 +238,170 @@ private struct ActiveModelCardView: View {
 
     private var loadingCard: some View {
         HStack(spacing: 12) {
-            ProgressView().controlSize(.regular)
+            ProgressView().controlSize(.regular).tint(SwiftLMTheme.accent)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Loading model…")
                     .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(SwiftLMTheme.textPrimary)
                 Text("Initializing Metal GPU")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption)
+                    .foregroundStyle(SwiftLMTheme.textSecondary)
             }
             Spacer()
         }
         .padding()
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .glassCard(cornerRadius: SwiftLMTheme.radiusLarge)
     }
 
     private func downloadingCard(progress: Double, speed: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Image(systemName: "arrow.down.circle.fill")
-                    .foregroundStyle(.blue)
+                    .foregroundStyle(SwiftLMTheme.accent)
                 Text("Downloading model…")
                     .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(SwiftLMTheme.textPrimary)
                 Spacer()
                 Text("\(Int(progress * 100))%")
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SwiftLMTheme.textSecondary)
             }
-            ProgressView(value: progress).tint(.blue)
-            Text(speed).font(.caption).foregroundStyle(.secondary)
+            ProgressView(value: progress).tint(SwiftLMTheme.accent)
+            Text(speed)
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(SwiftLMTheme.textSecondary)
         }
         .padding()
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .glassCard(cornerRadius: SwiftLMTheme.radiusLarge)
     }
 
     private var idleCard: some View {
         HStack(spacing: 12) {
-            Image(systemName: "cpu")
-                .font(.title2)
-                .foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 2) {
+            ZStack {
+                Circle()
+                    .fill(SwiftLMTheme.heroGradient)
+                    .frame(width: 46, height: 46)
+                    .shadow(color: SwiftLMTheme.accent.opacity(0.30), radius: 8)
+                Image(systemName: "bolt.fill")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+            VStack(alignment: .leading, spacing: 3) {
                 Text("No model loaded")
                     .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(SwiftLMTheme.textPrimary)
                 Text("Select a model below to start chatting")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption)
+                    .foregroundStyle(SwiftLMTheme.textSecondary)
             }
             Spacer()
         }
         .padding()
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .glassCard(cornerRadius: SwiftLMTheme.radiusLarge)
     }
 }
 
-// Workaround: top-level computed property for activeModelCard
-extension ModelsView {
+private struct ActiveModelHeroCard: View {
+    let modelId: String
+    let entry: ModelEntry?
+    let state: ModelState
+
+    var body: some View {
+        ZStack(alignment: .bottomLeading) {
+            // Dark mesh gradient background
+            RoundedRectangle(cornerRadius: SwiftLMTheme.radiusLarge)
+                .fill(SwiftLMTheme.heroGradient)
+
+            // Glow orb
+            Circle()
+                .fill(SwiftLMTheme.accent.opacity(0.18))
+                .frame(width: 120, height: 120)
+                .blur(radius: 30)
+                .offset(x: 60, y: -20)
+
+            // Border
+            RoundedRectangle(cornerRadius: SwiftLMTheme.radiusLarge)
+                .strokeBorder(
+                    LinearGradient(
+                        colors: [SwiftLMTheme.accent.opacity(0.40), Color.white.opacity(0.05)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+
+            // Content
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Active Model")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.65))
+                    Spacer()
+                    stateBadge
+                }
+
+                Text(entry?.displayName ?? modelId.components(separatedBy: "/").last ?? modelId)
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
+
+                HStack(spacing: 10) {
+                    if let entry {
+                        heroChip(String(format: "%.1f GB RAM", entry.ramRequiredGB), icon: "memorychip")
+                        if entry.isMoE {
+                            heroChip("MoE", icon: "square.grid.3x3.fill")
+                        }
+                        heroChip(entry.quantization, icon: "slider.horizontal.3")
+                    }
+                }
+            }
+            .padding(16)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 140)
+        .shadow(
+            color: SwiftLMTheme.shadowCard.color,
+            radius: SwiftLMTheme.shadowCard.radius,
+            x: SwiftLMTheme.shadowCard.x,
+            y: SwiftLMTheme.shadowCard.y
+        )
+    }
+
+    private func heroChip(_ label: String, icon: String) -> some View {
+        Label(label, systemImage: icon)
+            .font(.caption)
+            .foregroundStyle(.white.opacity(0.75))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(.white.opacity(0.12), in: Capsule())
+    }
+
     @ViewBuilder
-    var activeModelCard: some View {
-        ActiveModelCardView()
-            .environmentObject(engine)
+    private var stateBadge: some View {
+        switch state {
+        case .ready:
+            badgeView("Ready", icon: "checkmark.circle.fill", color: SwiftLMTheme.success)
+        case .generating:
+            HStack(spacing: 4) {
+                GeneratingDots()
+                Text("Generating")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(.white.opacity(0.15), in: Capsule())
+        default:
+            EmptyView()
+        }
+    }
+
+    private func badgeView(_ label: String, icon: String, color: Color) -> some View {
+        Label(label, systemImage: icon)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(color.opacity(0.18), in: Capsule())
     }
 }
 
@@ -341,39 +416,41 @@ private struct DownloadProgressCard: View {
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
-                        .stroke(Color.blue.opacity(0.15), lineWidth: 3)
+                        .stroke(SwiftLMTheme.accent.opacity(0.15), lineWidth: 3)
                     Circle()
                         .trim(from: 0, to: progress.fractionCompleted)
-                        .stroke(Color.blue, style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .stroke(SwiftLMTheme.avatarGradient,
+                                style: StrokeStyle(lineWidth: 3, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                         .animation(.linear(duration: 0.3), value: progress.fractionCompleted)
                 }
                 .frame(width: 32, height: 32)
 
-                VStack(alignment: .leading, spacing: 1) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(modelId.components(separatedBy: "/").last ?? modelId)
                         .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(SwiftLMTheme.textPrimary)
                         .lineLimit(1)
                     HStack(spacing: 6) {
                         Text("\(Int(progress.fractionCompleted * 100))%")
                             .font(.caption.monospacedDigit())
-                            .foregroundStyle(.blue)
+                            .foregroundStyle(SwiftLMTheme.accent)
                         if let speed = progress.speedMBps {
                             Text("·")
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(SwiftLMTheme.textTertiary).font(.caption)
                             Text(String(format: "%.1f MB/s", speed))
                                 .font(.caption.monospacedDigit())
-                                .foregroundStyle(.secondary)
+                                .foregroundStyle(SwiftLMTheme.textSecondary)
                         }
                     }
                 }
                 Spacer()
             }
             ProgressView(value: progress.fractionCompleted)
-                .tint(.blue)
+                .tint(SwiftLMTheme.accent)
         }
-        .padding(12)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+        .padding(14)
+        .glassCard(cornerRadius: SwiftLMTheme.radiusMedium)
     }
 }
 
@@ -391,52 +468,45 @@ private struct DownloadedModelRow: View {
             if !isActive { onLoad() }
         } label: {
             HStack(spacing: 12) {
-                // Icon
                 ZStack {
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(isActive ? Color.teal : Color.secondary.opacity(0.15))
+                        .fill(isActive ? AnyShapeStyle(SwiftLMTheme.userBubbleGradient) : AnyShapeStyle(SwiftLMTheme.surface))
                         .frame(width: 44, height: 44)
                     Image(systemName: entry?.isMoE == true ? "square.grid.3x3.fill" : "brain")
                         .font(.body)
-                        .foregroundStyle(isActive ? .white : .primary)
+                        .foregroundStyle(isActive ? .white : SwiftLMTheme.textSecondary)
                 }
+                .shadow(color: isActive ? SwiftLMTheme.accent.opacity(0.30) : .clear, radius: 6)
 
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
                         Text(entry?.displayName ?? downloaded.id.components(separatedBy: "/").last ?? downloaded.id)
                             .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(SwiftLMTheme.textPrimary)
                         if isActive {
-                            Text("IN USE")
-                                .font(.system(size: 9, weight: .bold))
-                                .padding(.horizontal, 5).padding(.vertical, 2)
-                                .background(Color.teal.opacity(0.15), in: Capsule())
-                                .foregroundStyle(.teal)
+                            ThemedBadge(text: "IN USE", color: SwiftLMTheme.accent)
                         }
                     }
                     HStack(spacing: 6) {
                         Text(downloaded.displaySize)
-                            .font(.caption).foregroundStyle(.secondary)
+                            .font(.caption)
+                            .foregroundStyle(SwiftLMTheme.textSecondary)
                         if let entry {
-                            Text("·").foregroundStyle(.tertiary).font(.caption)
-                            Text(entry.quantization).font(.caption).foregroundStyle(.secondary)
+                            Text("·").foregroundStyle(SwiftLMTheme.textTertiary).font(.caption)
+                            Text(entry.quantization)
+                                .font(.caption)
+                                .foregroundStyle(SwiftLMTheme.textSecondary)
                         }
                     }
                 }
 
                 Spacer()
 
-                if isActive {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.teal)
-                        .font(.title3)
-                } else {
-                    Image(systemName: "arrow.right.circle")
-                        .foregroundStyle(.secondary)
-                        .font(.title3)
-                }
+                Image(systemName: isActive ? "checkmark.circle.fill" : "arrow.right.circle")
+                    .foregroundStyle(isActive ? SwiftLMTheme.accent : SwiftLMTheme.textTertiary)
+                    .font(.title3)
             }
-            .padding(.vertical, 10)
+            .padding(.vertical, 12)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -455,66 +525,83 @@ private struct CatalogCard: View {
     let fitStatus: ModelCatalog.FitStatus
     let onTap: () -> Void
 
+    @State private var tapped = false
+
     var body: some View {
-        Button(action: onTap) {
+        Button {
+            withAnimation(SwiftLMTheme.quickSpring) { tapped = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+                tapped = false
+                onTap()
+            }
+        } label: {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Image(systemName: model.isMoE ? "square.grid.3x3.fill" : "brain")
                         .font(.title3)
                         .foregroundStyle(fitColor)
                     Spacer()
-                    fitBadge
+                    fitBadgeIcon
                 }
-
                 Spacer()
-
                 Text(model.displayName)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(SwiftLMTheme.textPrimary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
 
                 Text(String(format: "~%.0f GB RAM", model.ramRequiredGB))
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SwiftLMTheme.textSecondary)
 
-                Label("Download", systemImage: "arrow.down.circle")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(fitColor)
-                    .padding(.top, 2)
+                HStack(spacing: 4) {
+                    Image(systemName: "arrow.down.circle")
+                        .font(.caption)
+                    Text("Download")
+                        .font(.caption.weight(.medium))
+                }
+                .foregroundStyle(fitColor)
+                .padding(.top, 2)
             }
             .padding(14)
-            .frame(width: 150, height: 160)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+            .frame(width: 150, height: 165)
+            .background(SwiftLMTheme.surface.opacity(0.70))
+            .clipShape(RoundedRectangle(cornerRadius: SwiftLMTheme.radiusMedium))
+            .overlay(
+                RoundedRectangle(cornerRadius: SwiftLMTheme.radiusMedium)
+                    .strokeBorder(fitColor.opacity(tapped ? 0.60 : 0.18), lineWidth: 1)
+            )
+            .scaleEffect(tapped ? 0.96 : 1.0)
+            .shadow(color: fitColor.opacity(tapped ? 0.30 : 0.08), radius: 8, y: 4)
         }
         .buttonStyle(.plain)
     }
 
     private var fitColor: Color {
         switch fitStatus {
-        case .fits: return .blue
-        case .tight: return .orange
-        case .requiresFlash: return .indigo
-        case .tooLarge: return .red
+        case .fits:          return SwiftLMTheme.accent
+        case .tight:         return SwiftLMTheme.warning
+        case .requiresFlash: return Color.indigo
+        case .tooLarge:      return SwiftLMTheme.error
         }
     }
 
     @ViewBuilder
-    private var fitBadge: some View {
+    private var fitBadgeIcon: some View {
         switch fitStatus {
         case .fits:
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green).font(.caption)
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(SwiftLMTheme.success).font(.caption)
         case .tight:
-            Image(systemName: "exclamationmark.circle").foregroundStyle(.orange).font(.caption)
+            Image(systemName: "exclamationmark.circle").foregroundStyle(SwiftLMTheme.warning).font(.caption)
         case .requiresFlash:
-            Image(systemName: "externaldrive.badge.wifi").foregroundStyle(.indigo).font(.caption)
+            Image(systemName: "externaldrive.badge.wifi").foregroundStyle(Color.indigo).font(.caption)
         case .tooLarge:
-            Image(systemName: "xmark.circle").foregroundStyle(.red).font(.caption)
+            Image(systemName: "xmark.circle").foregroundStyle(SwiftLMTheme.error).font(.caption)
         }
     }
 }
 
-// MARK: — Catalog List Row (vertical list)
+// MARK: — Catalog List Row
 
 private struct CatalogListRow: View {
     let model: ModelEntry
@@ -526,7 +613,7 @@ private struct CatalogListRow: View {
             HStack(spacing: 12) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(fitColor.opacity(0.12))
+                        .fill(fitColor.opacity(0.14))
                         .frame(width: 40, height: 40)
                     Image(systemName: model.isMoE ? "square.grid.3x3.fill" : "brain")
                         .font(.callout)
@@ -537,18 +624,14 @@ private struct CatalogListRow: View {
                     HStack(spacing: 6) {
                         Text(model.displayName)
                             .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(SwiftLMTheme.textPrimary)
                         if let badge = model.badge {
-                            Text(badge)
-                                .font(.system(size: 9, weight: .bold))
-                                .padding(.horizontal, 5).padding(.vertical, 2)
-                                .background(Color.blue.opacity(0.12), in: Capsule())
-                                .foregroundStyle(.blue)
+                            ThemedBadge(text: badge, color: SwiftLMTheme.accent)
                         }
                     }
                     Text("\(model.parameterSize) · \(model.quantization) · ~\(String(format: "%.0f GB", model.ramRequiredGB)) RAM")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SwiftLMTheme.textSecondary)
                 }
 
                 Spacer()
@@ -563,10 +646,10 @@ private struct CatalogListRow: View {
 
     private var fitColor: Color {
         switch fitStatus {
-        case .fits: return .blue
-        case .tight: return .orange
-        case .requiresFlash: return .indigo
-        case .tooLarge: return .red
+        case .fits:          return SwiftLMTheme.accent
+        case .tight:         return SwiftLMTheme.warning
+        case .requiresFlash: return Color.indigo
+        case .tooLarge:      return SwiftLMTheme.error
         }
     }
 
@@ -575,21 +658,21 @@ private struct CatalogListRow: View {
         switch fitStatus {
         case .fits:
             Image(systemName: "arrow.down.circle")
-                .foregroundStyle(.blue).font(.title3)
+                .foregroundStyle(SwiftLMTheme.accent).font(.title3)
         case .tight:
             Image(systemName: "arrow.down.circle")
-                .foregroundStyle(.orange).font(.title3)
+                .foregroundStyle(SwiftLMTheme.warning).font(.title3)
         case .requiresFlash:
             Image(systemName: "externaldrive.badge.wifi")
-                .foregroundStyle(.indigo).font(.title3)
+                .foregroundStyle(Color.indigo).font(.title3)
         case .tooLarge:
             Image(systemName: "xmark.circle")
-                .foregroundStyle(.red).font(.title3)
+                .foregroundStyle(SwiftLMTheme.error).font(.title3)
         }
     }
 }
 
-// MARK: — HF Search Sheet (extracted from ModelPickerView)
+// MARK: — HF Search Sheet
 
 private struct HFSearchSheet: View {
     @EnvironmentObject private var engine: InferenceEngine
@@ -598,15 +681,21 @@ private struct HFSearchSheet: View {
 
     var body: some View {
         NavigationStack {
-            HFSearchTab(onSelect: { id in
-                onSelect(id)
-                dismiss()
-            })
+            ZStack {
+                SwiftLMTheme.background.ignoresSafeArea()
+                HFSearchTab(onSelect: { id in
+                    onSelect(id)
+                    dismiss()
+                })
+            }
             .navigationTitle("Search HuggingFace")
+            #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
+                        .foregroundStyle(SwiftLMTheme.accent)
                 }
             }
         }

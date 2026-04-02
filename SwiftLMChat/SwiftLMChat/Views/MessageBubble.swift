@@ -1,198 +1,319 @@
-// MessageBubble.swift — Chat message bubble + live streaming bubble
+// MessageBubble.swift — Premium chat message bubbles (iOS + macOS)
 import SwiftUI
 
-// MARK: — Shared adaptive colors
-
-private extension Color {
-    /// Assistant bubble background — works in both light and dark mode.
-    /// Light mode: warm near-white. Dark mode: elevated dark fill.
-    static var assistantBubble: Color {
-        #if os(macOS)
-        return Color(NSColor.controlBackgroundColor)
-        #else
-        return Color(UIColor.secondarySystemBackground)
-        #endif
-    }
-
-    /// Subtle inner tint for thinking disclosure group.
-    static var thinkingBubble: Color {
-        #if os(macOS)
-        return Color(NSColor.windowBackgroundColor)
-        #else
-        return Color(UIColor.tertiarySystemBackground)
-        #endif
-    }
-}
-
+// ─────────────────────────────────────────────────────────────────────────────
 // MARK: — Static Message Bubble
+// ─────────────────────────────────────────────────────────────────────────────
 
 struct MessageBubble: View {
     let message: ChatMessage
+    @State private var showTimestamp = false
+    @EnvironmentObject private var engine: InferenceEngine
 
     var isUser: Bool { message.role == .user }
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            if isUser { Spacer(minLength: 60) }
+            if isUser { Spacer(minLength: 52) }
 
             if !isUser {
-                // Avatar
-                Circle()
-                    .fill(LinearGradient(
-                        colors: [.blue, .purple],
-                        startPoint: .topLeading, endPoint: .bottomTrailing
-                    ))
-                    .frame(width: 28, height: 28)
-                    .overlay(
-                        Image(systemName: "cpu")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.white)
-                    )
+                AvatarView(
+                    isGenerating: false,
+                    size: 30
+                )
             }
 
             VStack(alignment: isUser ? .trailing : .leading, spacing: 4) {
-                Text(message.content)
-                    .font(.system(.body, design: .default))
-                    .textSelection(.enabled)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(isUser ? Color.accentColor : Color.assistantBubble)
-                    .foregroundStyle(isUser ? .white : .primary)
-                    .clipShape(BubbleShape(isUser: isUser))
-                    .shadow(color: .black.opacity(0.06), radius: 2, x: 0, y: 1)
+                if isUser {
+                    userBubble
+                } else {
+                    assistantBubble
+                }
 
-                Text(message.timestamp, style: .time)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                if showTimestamp {
+                    Text(message.timestamp, style: .time)
+                        .font(.caption2)
+                        .foregroundStyle(SwiftLMTheme.textTertiary)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .onTapGesture {
+                withAnimation(SwiftLMTheme.quickSpring) {
+                    showTimestamp.toggle()
+                }
             }
 
-            if !isUser { Spacer(minLength: 60) }
+            if !isUser { Spacer(minLength: 52) }
         }
+    }
+
+    // MARK: — User Bubble
+
+    private var userBubble: some View {
+        Text(message.content)
+            .font(.system(.body, design: .default))
+            .textSelection(.enabled)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(SwiftLMTheme.userBubbleGradient)
+            .clipShape(UserBubbleShape())
+            .shadow(
+                color: SwiftLMTheme.accent.opacity(0.30),
+                radius: 6, x: 0, y: 3
+            )
+    }
+
+    // MARK: — Assistant Bubble
+
+    private var assistantBubble: some View {
+        Text(message.content)
+            .font(.system(.body, design: .default))
+            .textSelection(.enabled)
+            .foregroundStyle(SwiftLMTheme.textPrimary)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(.ultraThinMaterial)
+            .background(SwiftLMTheme.surface.opacity(0.80))
+            .clipShape(AssistantBubbleShape())
+            .overlay(
+                AssistantBubbleShape()
+                    .stroke(Color.white.opacity(0.08), lineWidth: 1)
+            )
+            .shadow(
+                color: SwiftLMTheme.shadowBubble.color,
+                radius: SwiftLMTheme.shadowBubble.radius,
+                x: SwiftLMTheme.shadowBubble.x,
+                y: SwiftLMTheme.shadowBubble.y
+            )
     }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
 // MARK: — Live Streaming Bubble
+// ─────────────────────────────────────────────────────────────────────────────
 
 struct StreamingBubble: View {
     let text: String
     let thinkingText: String?
-    @State private var cursorVisible = true
+
+    @EnvironmentObject private var engine: InferenceEngine
+    @State private var thinkingExpanded = true
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 8) {
-            Circle()
-                .fill(LinearGradient(
-                    colors: [.blue, .purple],
-                    startPoint: .topLeading, endPoint: .bottomTrailing
-                ))
-                .frame(width: 28, height: 28)
-                .overlay(
-                    Image(systemName: "cpu")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white)
-                )
+            AvatarView(isGenerating: true, size: 30)
 
             VStack(alignment: .leading, spacing: 6) {
-                // Thinking section
+                // ── Thinking section ─────────────────────────────────────────
                 if let thinking = thinkingText, !thinking.isEmpty {
-                    DisclosureGroup {
-                        Text(thinking)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(8)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color.thinkingBubble, in: RoundedRectangle(cornerRadius: 8))
-                    } label: {
-                        Label("Thinking…", systemImage: "brain")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.secondary)
-                    }
+                    ThinkingPanel(text: thinking, isExpanded: $thinkingExpanded)
                 }
 
-                // Response text
+                // ── Response text ────────────────────────────────────────────
                 if !text.isEmpty {
-                    HStack(alignment: .bottom, spacing: 2) {
-                        Text(text)
-                            .font(.system(.body, design: .default))
-                            .foregroundStyle(.primary)
-                            .textSelection(.enabled)
-                        // Blinking cursor
-                        RoundedRectangle(cornerRadius: 1)
-                            .frame(width: 2, height: 16)
-                            .foregroundStyle(.blue)
-                            .opacity(cursorVisible ? 1 : 0)
-                            .animation(.easeInOut(duration: 0.5).repeatForever(), value: cursorVisible)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(Color.assistantBubble)
-                    .clipShape(BubbleShape(isUser: false))
-                    .shadow(color: .black.opacity(0.06), radius: 2, x: 0, y: 1)
-                } else {
-                    TypingIndicator()
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        .background(Color.assistantBubble)
-                        .clipShape(BubbleShape(isUser: false))
+                    streamingText
+                } else if thinkingText == nil || thinkingText?.isEmpty == true {
+                    // Show typing indicator only when there's no content at all
+                    typingDots
                 }
             }
 
-            Spacer(minLength: 60)
+            Spacer(minLength: 52)
         }
-        .onAppear { cursorVisible = false }
+    }
+
+    private var streamingText: some View {
+        // Inline blinking cursor via attributed string approach
+        HStack(alignment: .bottom, spacing: 0) {
+            Text(text)
+                .font(.system(.body, design: .default))
+                .foregroundStyle(SwiftLMTheme.textPrimary)
+                .textSelection(.enabled)
+            BlinkingCursor()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(.ultraThinMaterial)
+        .background(SwiftLMTheme.surface.opacity(0.80))
+        .clipShape(AssistantBubbleShape())
+        .overlay(
+            AssistantBubbleShape()
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+        .shadow(
+            color: SwiftLMTheme.shadowBubble.color,
+            radius: SwiftLMTheme.shadowBubble.radius,
+            x: SwiftLMTheme.shadowBubble.x,
+            y: SwiftLMTheme.shadowBubble.y
+        )
+    }
+
+    private var typingDots: some View {
+        HStack(spacing: 5) {
+            ForEach(0..<3, id: \.self) { i in
+                BouncingDot(index: i)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(.ultraThinMaterial)
+        .background(SwiftLMTheme.surface.opacity(0.80))
+        .clipShape(AssistantBubbleShape())
+        .overlay(
+            AssistantBubbleShape()
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
     }
 }
 
-// MARK: — Typing Indicator
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: — Thinking Panel
+// ─────────────────────────────────────────────────────────────────────────────
 
-struct TypingIndicator: View {
-    @State private var phase = 0
+private struct ThinkingPanel: View {
+    let text: String
+    @Binding var isExpanded: Bool
 
     var body: some View {
-        HStack(spacing: 5) {
-            ForEach(0..<3) { i in
-                Circle()
-                    .frame(width: 7, height: 7)
-                    .foregroundStyle(.secondary)
-                    .scaleEffect(phase == i ? 1.4 : 0.8)
-                    .animation(
-                        .easeInOut(duration: 0.45)
-                            .repeatForever()
-                            .delay(Double(i) * 0.15),
-                        value: phase
-                    )
+        VStack(alignment: .leading, spacing: 0) {
+            // Header toggle
+            Button {
+                withAnimation(SwiftLMTheme.spring) { isExpanded.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "brain.filled.head.profile")
+                        .font(.caption)
+                        .foregroundStyle(SwiftLMTheme.accentSecondary)
+                    Text("Thinking…")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(SwiftLMTheme.accentSecondary)
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(SwiftLMTheme.textTertiary)
+                        .rotationEffect(.degrees(isExpanded ? 0 : -90))
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+            }
+            .buttonStyle(.plain)
+
+            // Expandable content
+            if isExpanded {
+                ScrollView {
+                    Text(text)
+                        .font(.caption)
+                        .foregroundStyle(SwiftLMTheme.textSecondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                }
+                .frame(maxHeight: 160)
             }
         }
-        .onAppear { withAnimation { phase = 1 } }
+        .background(SwiftLMTheme.thinkingGradient)
+        .clipShape(RoundedRectangle(cornerRadius: SwiftLMTheme.radiusMedium))
+        .overlay(
+            RoundedRectangle(cornerRadius: SwiftLMTheme.radiusMedium)
+                .strokeBorder(SwiftLMTheme.accentSecondary.opacity(0.20), lineWidth: 1)
+        )
     }
 }
 
-// MARK: — Bubble Shape
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: — Blinking Cursor
+// ─────────────────────────────────────────────────────────────────────────────
 
-struct BubbleShape: Shape {
-    let isUser: Bool
-    let radius: CGFloat = 18
+private struct BlinkingCursor: View {
+    @State private var visible = true
 
+    var body: some View {
+        RoundedRectangle(cornerRadius: 1.5)
+            .frame(width: 2.5, height: 17)
+            .foregroundStyle(SwiftLMTheme.accent)
+            .opacity(visible ? 1 : 0)
+            .animation(
+                .easeInOut(duration: 0.52).repeatForever(autoreverses: true),
+                value: visible
+            )
+            .onAppear { visible = false }
+            .padding(.leading, 1)
+            .padding(.bottom, 1)
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: — Bouncing Dots (typing indicator)
+// ─────────────────────────────────────────────────────────────────────────────
+
+private struct BouncingDot: View {
+    let index: Int
+    @State private var bouncing = false
+
+    var body: some View {
+        Circle()
+            .frame(width: 7, height: 7)
+            .foregroundStyle(SwiftLMTheme.textSecondary)
+            .offset(y: bouncing ? -5 : 0)
+            .animation(
+                .easeInOut(duration: 0.45)
+                    .repeatForever(autoreverses: true)
+                    .delay(Double(index) * 0.14),
+                value: bouncing
+            )
+            .onAppear { bouncing = true }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MARK: — Bubble Shapes
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// User bubble: rounded top-left + bottom, small top-right corner.
+struct UserBubbleShape: Shape {
+    let r: CGFloat = 18
     func path(in rect: CGRect) -> Path {
-        let tl: CGFloat = isUser ? radius : 4
-        let tr: CGFloat = isUser ? 4  : radius
-        let bl: CGFloat = radius
-        let br: CGFloat = radius
-        var path = Path()
-        path.move(to: CGPoint(x: rect.minX + tl, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX - tr, y: rect.minY))
-        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + tr),
-                          control: CGPoint(x: rect.maxX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - br))
-        path.addQuadCurve(to: CGPoint(x: rect.maxX - br, y: rect.maxY),
-                          control: CGPoint(x: rect.maxX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX + bl, y: rect.maxY))
-        path.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY - bl),
-                          control: CGPoint(x: rect.minX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + tl))
-        path.addQuadCurve(to: CGPoint(x: rect.minX + tl, y: rect.minY),
-                          control: CGPoint(x: rect.minX, y: rect.minY))
-        path.closeSubpath()
-        return path
+        var p = Path()
+        p.move(to: CGPoint(x: rect.minX + r, y: rect.minY))
+        p.addLine(to: CGPoint(x: rect.maxX - 4, y: rect.minY))
+        p.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + 4),
+                       control: CGPoint(x: rect.maxX, y: rect.minY))
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - r))
+        p.addQuadCurve(to: CGPoint(x: rect.maxX - r, y: rect.maxY),
+                       control: CGPoint(x: rect.maxX, y: rect.maxY))
+        p.addLine(to: CGPoint(x: rect.minX + r, y: rect.maxY))
+        p.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY - r),
+                       control: CGPoint(x: rect.minX, y: rect.maxY))
+        p.addLine(to: CGPoint(x: rect.minX, y: rect.minY + r))
+        p.addQuadCurve(to: CGPoint(x: rect.minX + r, y: rect.minY),
+                       control: CGPoint(x: rect.minX, y: rect.minY))
+        p.closeSubpath()
+        return p
     }
 }
+
+/// Assistant bubble: small top-left (tail side), large radii elsewhere.
+struct AssistantBubbleShape: Shape {
+    let r: CGFloat = 18
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        p.move(to: CGPoint(x: rect.minX + 4, y: rect.minY))
+        p.addLine(to: CGPoint(x: rect.maxX - r, y: rect.minY))
+        p.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + r),
+                       control: CGPoint(x: rect.maxX, y: rect.minY))
+        p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - r))
+        p.addQuadCurve(to: CGPoint(x: rect.maxX - r, y: rect.maxY),
+                       control: CGPoint(x: rect.maxX, y: rect.maxY))
+        p.addLine(to: CGPoint(x: rect.minX + r, y: rect.maxY))
+        p.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY - r),
+                       control: CGPoint(x: rect.minX, y: rect.maxY))
+        p.addLine(to: CGPoint(x: rect.minX, y: rect.minY + 4))
+        p.addQuadCurve(to: CGPoint(x: rect.minX + 4, y: rect.minY),
+                       control: CGPoint(x: rect.minX, y: rect.minY))
+        p.closeSubpath()
+        return p
+    }
+}
+
+// Keep BubbleShape for any legacy reference
+typealias BubbleShape = UserBubbleShape

@@ -1,11 +1,11 @@
-// ChatView.swift — Main chat interface (iOS + macOS)
+// ChatView.swift — Premium chat interface (iOS + macOS)
 import SwiftUI
 
 struct ChatView: View {
     @ObservedObject var viewModel: ChatViewModel
     @EnvironmentObject private var engine: InferenceEngine
 
-    // macOS-only sheet control (iOS: these are tabs now)
+    // macOS-only sheet control (iOS: these are tabs)
     var showSettings: Binding<Bool>? = nil
     var showModelPicker: Binding<Bool>? = nil
 
@@ -13,60 +13,71 @@ struct ChatView: View {
     @FocusState private var inputFocused: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            // ── Message list or empty state ─────────────────────────────
-            ScrollViewReader { proxy in
-                ScrollView {
-                    if viewModel.messages.isEmpty && viewModel.streamingText.isEmpty {
-                        emptyStateView
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 60)
-                    } else {
-                        LazyVStack(alignment: .leading, spacing: 12) {
-                            ForEach(viewModel.messages) { message in
-                                MessageBubble(message: message)
-                                    .id(message.id)
-                            }
-                            if !viewModel.streamingText.isEmpty || viewModel.thinkingText != nil {
-                                StreamingBubble(
-                                    text: viewModel.streamingText,
-                                    thinkingText: viewModel.thinkingText
-                                )
-                                .id("streaming")
-                            }
-                            Color.clear.frame(height: 1).id("bottom")
-                        }
-                        .padding()
-                        .padding(.bottom, 4)
-                    }
-                }
-                // Swipe the message list down to dismiss keyboard —
-                // this reveals the tab bar so user can navigate while typing.
-                .scrollDismissesKeyboard(.interactively)
-                // Tap anywhere in the message area to dismiss the keyboard
-                .onTapGesture { inputFocused = false }
-                .onChange(of: viewModel.streamingText) { _, _ in
-                    withAnimation(.easeOut(duration: 0.1)) {
-                        proxy.scrollTo("bottom")
-                    }
-                }
+        ZStack {
+            // ── Deep canvas background ───────────────────────────────────────
+            SwiftLMTheme.background.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                // ── Message list ─────────────────────────────────────────────
+                messageList
+
+                // ── Engine state banner ──────────────────────────────────────
+                engineBanner
+
+                // ── Input bar ────────────────────────────────────────────────
+                inputBar
             }
-
-            // ── Engine state banner (loading / error) ────────────────────
-            engineBanner
-
-            Divider()
-
-            // ── Input bar ────────────────────────────────────────────────
-            inputBar
         }
         .navigationTitle("SwiftLM Chat")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { iOSToolbar }
+        .toolbarBackground(SwiftLMTheme.background.opacity(0.90), for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
         #else
         .toolbar { macOSToolbar }
         #endif
+    }
+
+    // MARK: — Message List
+
+    private var messageList: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                if viewModel.messages.isEmpty && viewModel.streamingText.isEmpty {
+                    emptyStateView
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 60)
+                } else {
+                    LazyVStack(alignment: .leading, spacing: 14) {
+                        ForEach(viewModel.messages) { message in
+                            MessageBubble(message: message)
+                                .id(message.id)
+                                .environmentObject(engine)
+                        }
+                        if !viewModel.streamingText.isEmpty || viewModel.thinkingText != nil {
+                            StreamingBubble(
+                                text: viewModel.streamingText,
+                                thinkingText: viewModel.thinkingText
+                            )
+                            .id("streaming")
+                            .environmentObject(engine)
+                        }
+                        Color.clear.frame(height: 1).id("bottom")
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.top, 12)
+                    .padding(.bottom, 8)
+                }
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .onTapGesture { inputFocused = false }
+            .onChange(of: viewModel.streamingText) { _, _ in
+                withAnimation(.easeOut(duration: 0.1)) {
+                    proxy.scrollTo("bottom")
+                }
+            }
+        }
     }
 
     // MARK: — Empty State
@@ -74,175 +85,262 @@ struct ChatView: View {
     @ViewBuilder
     private var emptyStateView: some View {
         switch engine.state {
+
         case .downloading(let progress, let speed):
-            VStack(spacing: 16) {
-                ZStack {
-                    Circle()
-                        .stroke(Color.blue.opacity(0.15), lineWidth: 6)
-                        .frame(width: 72, height: 72)
-                    Circle()
-                        .trim(from: 0, to: progress)
-                        .stroke(Color.blue, style: StrokeStyle(lineWidth: 6, lineCap: .round))
-                        .rotationEffect(.degrees(-90))
-                        .frame(width: 72, height: 72)
-                        .animation(.linear(duration: 0.3), value: progress)
-                    Text("\(Int(progress * 100))%")
-                        .font(.caption.monospacedDigit().weight(.semibold))
-                }
-                VStack(spacing: 4) {
+            VStack(spacing: 20) {
+                downloadRing(progress: progress)
+                VStack(spacing: 6) {
                     Text("Downloading model…")
                         .font(.headline)
+                        .foregroundStyle(SwiftLMTheme.textPrimary)
                     Text(speed.isEmpty ? "Preparing…" : speed)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(SwiftLMTheme.textSecondary)
                 }
                 Text("You'll be able to chat once the download completes.")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SwiftLMTheme.textTertiary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
             }
+
         case .loading:
-            VStack(spacing: 12) {
-                ProgressView().controlSize(.large)
+            VStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .stroke(SwiftLMTheme.accent.opacity(0.15), lineWidth: 3)
+                        .frame(width: 64, height: 64)
+                    ProgressView()
+                        .controlSize(.large)
+                        .tint(SwiftLMTheme.accent)
+                }
                 Text("Loading model into Metal GPU…")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SwiftLMTheme.textSecondary)
             }
+
         case .idle:
-            VStack(spacing: 12) {
-                Image(systemName: "cpu")
-                    .font(.system(size: 48))
-                    .foregroundStyle(.tertiary)
-                Text("No model loaded")
-                    .font(.headline)
-                Text("Go to the Models tab to download and select a model.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-            }
+            idleEmptyState
+
         case .error(let msg):
-            VStack(spacing: 12) {
+            VStack(spacing: 14) {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 48))
-                    .foregroundStyle(.red)
+                    .font(.system(size: 44))
+                    .foregroundStyle(SwiftLMTheme.error)
                 Text("Load failed")
                     .font(.headline)
+                    .foregroundStyle(SwiftLMTheme.textPrimary)
                 Text(msg)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SwiftLMTheme.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
             }
+
         case .ready, .generating:
-            VStack(spacing: 12) {
-                Image(systemName: "bubble.left.and.bubble.right")
-                    .font(.system(size: 48))
-                    .foregroundStyle(.tertiary)
+            VStack(spacing: 14) {
+                // Brand mark
+                brandMark
                 Text("Start a conversation")
                     .font(.headline)
+                    .foregroundStyle(SwiftLMTheme.textPrimary)
                 Text("Type a message below to begin.")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(SwiftLMTheme.textSecondary)
             }
         }
     }
 
-    // MARK: — Engine State Banner
+    // Brand mark — animated bolt in gradient ring
+    private var brandMark: some View {
+        ZStack {
+            Circle()
+                .fill(SwiftLMTheme.heroGradient)
+                .frame(width: 80, height: 80)
+                .shadow(color: SwiftLMTheme.accent.opacity(0.35), radius: 18)
+
+            Image(systemName: "bolt.fill")
+                .font(.system(size: 34, weight: .semibold))
+                .foregroundStyle(
+                    LinearGradient(colors: [.white, SwiftLMTheme.cyan],
+                                   startPoint: .top, endPoint: .bottom)
+                )
+        }
+    }
+
+    // Idle empty state — brand mark + tagline
+    private var idleEmptyState: some View {
+        VStack(spacing: 20) {
+            brandMark
+
+            VStack(spacing: 6) {
+                Text("SwiftLM Chat")
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(SwiftLMTheme.textPrimary)
+
+                Text("Run any model. Locally. Instantly.")
+                    .font(.subheadline)
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [SwiftLMTheme.accent, SwiftLMTheme.cyan],
+                            startPoint: .leading, endPoint: .trailing
+                        )
+                    )
+            }
+
+            Text("Go to the **Models** tab to download\na model and start chatting.")
+                .font(.caption)
+                .foregroundStyle(SwiftLMTheme.textTertiary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+        }
+    }
+
+    // Download ring
+    private func downloadRing(progress: Double) -> some View {
+        ZStack {
+            Circle()
+                .stroke(SwiftLMTheme.accent.opacity(0.15), lineWidth: 6)
+            Circle()
+                .trim(from: 0, to: progress)
+                .stroke(
+                    SwiftLMTheme.avatarGradient,
+                    style: StrokeStyle(lineWidth: 6, lineCap: .round)
+                )
+                .rotationEffect(.degrees(-90))
+                .animation(.linear(duration: 0.3), value: progress)
+            Text("\(Int(progress * 100))%")
+                .font(.caption.monospacedDigit().weight(.semibold))
+                .foregroundStyle(SwiftLMTheme.textPrimary)
+        }
+        .frame(width: 72, height: 72)
+    }
+
+    // MARK: — Engine Banner (slim status strip above input)
 
     @ViewBuilder
     private var engineBanner: some View {
         switch engine.state {
         case .idle:
-            HStack(spacing: 8) {
-                Image(systemName: "cpu").foregroundStyle(.secondary)
-                Text("No model loaded — tap Models to get started")
-                    .font(.caption).foregroundStyle(.secondary)
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(Color(.systemGray6))
+            bannerRow(icon: "cpu", text: "No model loaded", color: SwiftLMTheme.textTertiary)
         case .loading:
             HStack(spacing: 8) {
-                ProgressView().controlSize(.mini)
+                ProgressView().controlSize(.mini).tint(SwiftLMTheme.accent)
                 Text("Loading model…")
-                    .font(.caption).foregroundStyle(.secondary)
+                    .font(.caption)
+                    .foregroundStyle(SwiftLMTheme.textSecondary)
                 Spacer()
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .background(Color(.systemGray6))
-        case .downloading(let progress, let speed):
+            .background(SwiftLMTheme.surface.opacity(0.90))
+        case .downloading(let p, let speed):
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text("Downloading…")
                         .font(.caption.weight(.medium))
+                        .foregroundStyle(SwiftLMTheme.textSecondary)
                     Spacer()
-                    Text("\(Int(progress * 100))% · \(speed)")
+                    Text("\(Int(p * 100))% · \(speed)")
                         .font(.caption2.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(SwiftLMTheme.textTertiary)
                 }
-                ProgressView(value: progress).tint(.blue)
+                ProgressView(value: p).tint(SwiftLMTheme.accent)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
-            .background(Color(.systemGray6))
+            .background(SwiftLMTheme.surface.opacity(0.90))
         case .error(let msg):
-            HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.red)
-                Text(msg).font(.caption).foregroundStyle(.red).lineLimit(2)
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .background(Color(.systemGray6))
+            bannerRow(icon: "exclamationmark.triangle.fill", text: msg, color: SwiftLMTheme.error)
         case .ready, .generating:
             EmptyView()
         }
     }
 
+    private func bannerRow(icon: String, text: String, color: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon).foregroundStyle(color)
+            Text(text)
+                .font(.caption)
+                .foregroundStyle(color)
+                .lineLimit(2)
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(SwiftLMTheme.surface.opacity(0.90))
+    }
+
     // MARK: — Input Bar
 
     private var inputBar: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            TextField("Message", text: $inputText, axis: .vertical)
-                .textFieldStyle(.plain)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(Color(.systemGray).opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 20))
-                .lineLimit(1...8)
-                .focused($inputFocused)
-                .onSubmit {
-                    #if os(macOS)
-                    sendMessage()
-                    #endif
-                }
-                .disabled(!engine.state.canSend)
+        HStack(alignment: .bottom, spacing: 10) {
+            // Text field with frosted glass pill
+            HStack(alignment: .bottom) {
+                TextField("Message", text: $inputText, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(.system(.body))
+                    .foregroundStyle(SwiftLMTheme.textPrimary)
+                    .lineLimit(1...8)
+                    .focused($inputFocused)
+                    .onSubmit {
+                        #if os(macOS)
+                        sendMessage()
+                        #endif
+                    }
+                    .disabled(!engine.state.canSend)
+                    .accentColor(SwiftLMTheme.accent)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(.ultraThinMaterial)
+            .background(SwiftLMTheme.surface.opacity(0.70))
+            .clipShape(RoundedRectangle(cornerRadius: SwiftLMTheme.radiusXL))
+            .overlay(
+                RoundedRectangle(cornerRadius: SwiftLMTheme.radiusXL)
+                    .strokeBorder(
+                        inputFocused
+                            ? SwiftLMTheme.accent.opacity(0.55)
+                            : Color.white.opacity(0.08),
+                        lineWidth: inputFocused ? 1.5 : 1
+                    )
+                    .animation(SwiftLMTheme.quickSpring, value: inputFocused)
+            )
+            .glowRing(active: inputFocused)
 
+            // Send / Stop button
             if viewModel.isGenerating {
                 Button(action: viewModel.stopGeneration) {
-                    Image(systemName: "stop.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.red)
+                    ZStack {
+                        Circle()
+                            .fill(SwiftLMTheme.error.opacity(0.18))
+                            .frame(width: 40, height: 40)
+                        Image(systemName: "stop.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(SwiftLMTheme.error)
+                    }
                 }
                 .buttonStyle(.plain)
             } else {
                 Button(action: sendMessage) {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(canSend ? .blue : .gray)
+                    ZStack {
+                        Circle()
+                            .fill(canSend ? AnyShapeStyle(SwiftLMTheme.userBubbleGradient) : AnyShapeStyle(Color.white.opacity(0.08)))
+                            .frame(width: 40, height: 40)
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(canSend ? .white : SwiftLMTheme.textTertiary)
+                    }
                 }
                 .buttonStyle(.plain)
                 .disabled(!canSend)
                 .keyboardShortcut(.return, modifiers: .command)
+                .animation(SwiftLMTheme.quickSpring, value: canSend)
             }
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(.regularMaterial)
+        .padding(.vertical, 10)
+        .background(SwiftLMTheme.background.opacity(0.95))
     }
 
     private var canSend: Bool {
@@ -261,43 +359,49 @@ struct ChatView: View {
     #if os(iOS)
     @ToolbarContentBuilder
     private var iOSToolbar: some ToolbarContent {
-        // Model status pill (center)
+        // Animated status pill (center)
         ToolbarItem(placement: .principal) {
             modelStatusPill
         }
-        // Dismiss keyboard when focused — lets user reach the tab bar
+        // Keyboard dismiss
         ToolbarItem(placement: .topBarLeading) {
             if inputFocused {
-                Button {
-                    inputFocused = false
-                } label: {
+                Button { inputFocused = false } label: {
                     Image(systemName: "keyboard.chevron.compact.down")
+                        .foregroundStyle(SwiftLMTheme.textSecondary)
                 }
                 .transition(.opacity)
             }
         }
         // New conversation
         ToolbarItem(placement: .topBarTrailing) {
-            Button {
-                viewModel.newConversation()
-            } label: {
+            Button { viewModel.newConversation() } label: {
                 Image(systemName: "square.and.pencil")
+                    .foregroundStyle(SwiftLMTheme.accent)
             }
         }
     }
 
     private var modelStatusPill: some View {
         HStack(spacing: 5) {
-            Circle()
-                .fill(engine.state.statusColor)
-                .frame(width: 7, height: 7)
+            if case .generating = engine.state {
+                GeneratingDots()
+            } else {
+                Circle()
+                    .fill(engine.state.statusColor)
+                    .frame(width: 7, height: 7)
+            }
             Text(engine.state.shortLabel)
                 .font(.caption.weight(.medium))
+                .foregroundStyle(SwiftLMTheme.textPrimary)
                 .lineLimit(1)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 4)
-        .background(.regularMaterial, in: Capsule())
+        .padding(.horizontal, 12)
+        .padding(.vertical, 5)
+        .background(.ultraThinMaterial)
+        .background(SwiftLMTheme.surface.opacity(0.70))
+        .clipShape(Capsule())
+        .overlay(Capsule().strokeBorder(Color.white.opacity(0.09), lineWidth: 1))
     }
     #endif
 
@@ -328,22 +432,22 @@ extension ModelState {
 
     var statusColor: Color {
         switch self {
-        case .idle:                        return .gray
-        case .loading, .downloading:       return .orange
-        case .ready:                       return .green
-        case .generating:                  return .blue
-        case .error:                       return .red
+        case .idle:                       return SwiftLMTheme.textTertiary
+        case .loading, .downloading:      return SwiftLMTheme.warning
+        case .ready:                      return SwiftLMTheme.success
+        case .generating:                 return SwiftLMTheme.accent
+        case .error:                      return SwiftLMTheme.error
         }
     }
 
     var shortLabel: String {
         switch self {
-        case .idle:                          return "No model"
-        case .loading:                       return "Loading…"
-        case .downloading(let p, _):         return "\(Int(p * 100))% downloading"
-        case .ready(let modelId):            return modelId.components(separatedBy: "/").last ?? modelId
-        case .generating:                    return "Generating…"
-        case .error:                         return "Error"
+        case .idle:                        return "No model"
+        case .loading:                     return "Loading…"
+        case .downloading(let p, _):       return "\(Int(p * 100))% downloading"
+        case .ready(let modelId):          return modelId.components(separatedBy: "/").last ?? modelId
+        case .generating:                  return "Generating"
+        case .error:                       return "Error"
         }
     }
 }

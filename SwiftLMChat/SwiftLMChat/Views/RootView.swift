@@ -3,6 +3,7 @@ import SwiftUI
 
 struct RootView: View {
     @EnvironmentObject private var engine: InferenceEngine
+    @EnvironmentObject private var appearance: AppearanceStore
     @StateObject private var viewModel = ChatViewModel()
 
     // iOS: tab selection
@@ -27,6 +28,7 @@ struct RootView: View {
                 }
                 .sheet(isPresented: $showSettings) {
                     SettingsView(viewModel: viewModel)
+                        .environmentObject(appearance)
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .showModelPicker)) { _ in
                     showModelPicker = true
@@ -50,7 +52,7 @@ struct RootView: View {
     #if os(iOS)
     private var iOSTabView: some View {
         TabView(selection: $selectedTab) {
-            // ── Chat Tab ────────────────────────────────────────────────
+            // ── Chat Tab ──────────────────────────────────────────────────
             NavigationStack {
                 ChatView(viewModel: viewModel)
                     .environmentObject(engine)
@@ -62,7 +64,7 @@ struct RootView: View {
             }
             .tag(Tab.chat)
 
-            // ── Models Tab ──────────────────────────────────────────────
+            // ── Models Tab ────────────────────────────────────────────────
             NavigationStack {
                 ModelsView(viewModel: viewModel)
                     .environmentObject(engine)
@@ -71,17 +73,21 @@ struct RootView: View {
                 Label("Models", systemImage: selectedTab == .models ? "cpu.fill" : "cpu")
             }
             .tag(Tab.models)
-            .badge(engine.downloadManager.activeDownloads.isEmpty ? 0 : engine.downloadManager.activeDownloads.count)
+            .badge(engine.downloadManager.activeDownloads.isEmpty
+                   ? 0
+                   : engine.downloadManager.activeDownloads.count)
 
-            // ── Settings Tab ────────────────────────────────────────────
+            // ── Settings Tab ──────────────────────────────────────────────
             NavigationStack {
                 SettingsView(viewModel: viewModel, isTab: true)
+                    .environmentObject(appearance)
             }
             .tabItem {
                 Label("Settings", systemImage: selectedTab == .settings ? "gearshape.fill" : "gearshape")
             }
             .tag(Tab.settings)
         }
+        .tint(SwiftLMTheme.accent)
         // Navigate to Models tab when a model load is requested from chat
         .onReceive(NotificationCenter.default.publisher(for: .showModelPicker)) { _ in
             selectedTab = .models
@@ -95,31 +101,94 @@ struct RootView: View {
     private var macOSLayout: some View {
         NavigationSplitView {
             VStack(alignment: .leading, spacing: 0) {
-                modelStatusView
+                // ── Branded sidebar header ────────────────────────────────
+                sidebarHeader
                 Divider()
+                    .background(SwiftLMTheme.divider)
+
+                // ── Engine status ─────────────────────────────────────────
+                engineStatusSection
+                Divider()
+                    .background(SwiftLMTheme.divider)
+
+                // ── Actions list ──────────────────────────────────────────
                 List {
-                    Label("New Chat", systemImage: "plus.bubble")
-                        .onTapGesture { viewModel.newConversation() }
+                    Section("Conversations") {
+                        Button {
+                            viewModel.newConversation()
+                        } label: {
+                            Label("New Chat", systemImage: "plus.bubble")
+                                .foregroundStyle(SwiftLMTheme.accent)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
                 .listStyle(.sidebar)
+                .scrollContentBackground(.hidden)
+                .background(SwiftLMTheme.background)
             }
-            .frame(minWidth: 200)
+            .frame(minWidth: 220)
+            .background(SwiftLMTheme.background)
         } detail: {
-            ChatView(viewModel: viewModel, showSettings: $showSettings, showModelPicker: $showModelPicker)
+            ChatView(
+                viewModel: viewModel,
+                showSettings: $showSettings,
+                showModelPicker: $showModelPicker
+            )
+            .background(SwiftLMTheme.background)
         }
         .navigationTitle("")
     }
 
-    private var modelStatusView: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Image(systemName: "cpu").foregroundStyle(.secondary)
-                Text("SwiftLM").font(.headline)
-                Spacer()
+    // Branded header — bolt icon + SwiftLM wordmark + version chip
+    private var sidebarHeader: some View {
+        HStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(SwiftLMTheme.heroGradient)
+                    .frame(width: 32, height: 32)
+                Image(systemName: "bolt.fill")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(.white)
             }
-            engineStateView
+            .shadow(color: SwiftLMTheme.accent.opacity(0.40), radius: 6)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("SwiftLM")
+                    .font(.system(.subheadline, weight: .bold))
+                    .foregroundStyle(SwiftLMTheme.textPrimary)
+                Text("Chat")
+                    .font(.caption2)
+                    .foregroundStyle(SwiftLMTheme.textTertiary)
+            }
+
+            Spacer()
+
+            Text("v1.0")
+                .font(.system(size: 9, weight: .bold))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(SwiftLMTheme.accent.opacity(0.18), in: Capsule())
+                .foregroundStyle(SwiftLMTheme.accent)
         }
-        .padding()
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+    }
+
+    // Engine status row in sidebar
+    private var engineStatusSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Engine")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(SwiftLMTheme.textTertiary)
+                .textCase(.uppercase)
+                .padding(.horizontal, 14)
+                .padding(.top, 10)
+
+            engineStateView
+                .padding(.horizontal, 14)
+                .padding(.bottom, 10)
+        }
     }
 
     @ViewBuilder
@@ -127,25 +196,55 @@ struct RootView: View {
         switch engine.state {
         case .idle:
             Button("Load Model") { showModelPicker = true }
-                .buttonStyle(.borderedProminent).controlSize(.small)
+                .buttonStyle(.borderedProminent)
+                .tint(SwiftLMTheme.accent)
+                .controlSize(.small)
+
         case .loading:
-            Label("Loading…", systemImage: "arrow.2.circlepath")
-                .font(.caption).foregroundStyle(.secondary)
-        case .downloading(let progress, let speed):
-            VStack(alignment: .leading, spacing: 2) {
-                ProgressView(value: progress)
-                Text("\(Int(progress * 100))% · \(speed)")
-                    .font(.caption2).foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.mini).tint(SwiftLMTheme.accent)
+                Text("Loading…")
+                    .font(.caption)
+                    .foregroundStyle(SwiftLMTheme.textSecondary)
             }
+
+        case .downloading(let progress, let speed):
+            VStack(alignment: .leading, spacing: 4) {
+                ProgressView(value: progress).tint(SwiftLMTheme.accent)
+                Text("\(Int(progress * 100))% · \(speed)")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(SwiftLMTheme.textTertiary)
+            }
+
         case .ready(let modelId):
-            Label(modelId.components(separatedBy: "/").last ?? modelId, systemImage: "checkmark.circle.fill")
-                .font(.caption).foregroundStyle(.green).lineLimit(1)
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(SwiftLMTheme.success)
+                    .frame(width: 7, height: 7)
+                Text(modelId.components(separatedBy: "/").last ?? modelId)
+                    .font(.caption)
+                    .foregroundStyle(SwiftLMTheme.textSecondary)
+                    .lineLimit(1)
+            }
+
         case .generating:
-            Label("Generating…", systemImage: "ellipsis.bubble")
-                .font(.caption).foregroundStyle(.blue)
+            HStack(spacing: 6) {
+                GeneratingDots()
+                Text("Generating…")
+                    .font(.caption)
+                    .foregroundStyle(SwiftLMTheme.textSecondary)
+            }
+
         case .error(let msg):
-            Label(msg, systemImage: "exclamationmark.triangle")
-                .font(.caption).foregroundStyle(.red).lineLimit(2)
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(SwiftLMTheme.error)
+                Text(msg)
+                    .font(.caption)
+                    .foregroundStyle(SwiftLMTheme.error)
+                    .lineLimit(2)
+            }
         }
     }
     #endif

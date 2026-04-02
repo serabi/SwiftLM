@@ -68,11 +68,12 @@ public final class ModelDownloadManager: ObservableObject {
     private var downloadTasks: [String: Task<Void, Error>] = [:]
 
     // MARK: iOS RAM budget
-    /// On iOS, use a tighter RAM budget to avoid jetsam (40% of physical RAM).
+    /// On iOS, use 40% (conservative, avoids jetsam) or 55% in Performance Mode.
     /// On macOS, use 75% (generous, no jetsam).
     public static var ramBudgetFraction: Double {
         #if os(iOS)
-        return 0.40
+        let performanceMode = UserDefaults.standard.bool(forKey: "swiftlm.performanceMode")
+        return performanceMode ? 0.55 : 0.40
         #else
         return 0.75
         #endif
