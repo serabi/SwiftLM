@@ -20,3 +20,10 @@ DerivedData/
 *.pid
 curl_out.txt
 sample.txt
+benchmark_*.txt
+*.out
+*.json
+tmp-*/
+server_pid.txt
+extreme_benchmark_out.txt
+
