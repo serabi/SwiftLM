@@ -7,6 +7,10 @@ No Python runtime, no Global Interpreter Lock (GIL), no unnecessary memory copie
 <p align="center">
   <img src="docs/mac_demo.gif" width="720" alt="SwiftLM Mac macOS demo" />
 </p>
+<br>
+<p align="center">
+  <img src="docs/demo.gif" width="320" alt="SwiftLM Chat iOS demo" />
+</p>
 
 ---
 
@@ -84,10 +88,6 @@ Benchmark results for `gemma-4-26b-a4b-it-4bit` (26B MoE, 4-bit) on M5 Pro 64 GB
 ---
 
 ## 📱 SwiftLM Chat — iOS App
-
-<p align="center">
-  <img src="docs/demo.gif" width="320" alt="SwiftLM Chat iOS demo" />
-</p>
 
 A native iPhone & iPad companion app that downloads MLX models directly from HuggingFace and runs inference on-device via MLX Swift.
 
