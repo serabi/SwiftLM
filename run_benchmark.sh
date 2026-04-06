@@ -188,7 +188,7 @@ if [ "$suite_opt" == "3" ]; then
     echo "Server is up! Executing DeepCamera HomeSec Benchmark..."
     
     # Run the benchmark against the LLM gateway. Not specifying --vlm disables VLM tests.
-    node ../DeepCamera/skills/analysis/home-security-benchmark/scripts/run-benchmark.cjs --gateway http://127.0.0.1:5431
+    node ../DeepCamera/skills/analysis/home-security-benchmark/scripts/run-benchmark.cjs --gateway http://127.0.0.1:5431 --out ./tmp/benchmarks
     
     echo ""
     echo "Cleaning up..."
