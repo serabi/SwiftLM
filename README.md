@@ -30,12 +30,7 @@ Benchmark results for `gemma-4-26b-a4b-it-4bit` (26B MoE, 4-bit) on M5 Pro 64 GB
 - 📄 **40K context on 24 GB MacBook Pro**: SSD + TurboQuant fits in **22.7 GB**
 - 📚 **100K context on 32 GB Mac Studio**: SSD + TurboQuant fits in **33.3 GB** — previously required 64 GB
 
-Run the benchmark on your device:
-```bash
-./run_benchmark.sh
-```
-
-> The interactive script lets you pick a model and context sizes. Results are saved to `profiling_results_<hostname>.md` with a rich console visualization.
+> Run `./run_benchmark.sh` to generate these metrics on your own device. (See **Benchmarks & Testing** below).
 
 ---
 
@@ -78,9 +73,16 @@ Reference implementations: [`turboquant-mlx`](https://github.com/sharpner/turboq
 
 ---
 
-## 💻 Additional Benchmarks
+## 💻 Benchmarks & Testing
 
-### Prompt Cache & Sliding Window Regression Test
+### Test 1: Automated Extreme Context Benchmark
+Run the automated profiling suite on your device to test generation speed and GPU memory allocation across extreme context lengths (up to 100K tokens):
+```bash
+./run_benchmark.sh
+```
+> The interactive script lets you pick a model and context sizes. Results are saved to `profiling_results_<hostname>.md` with a rich console visualization.
+
+### Test 2: Prompt Cache & Sliding Window Regression Test
 To verify the stability of the prompt cache when interleaving long contexts with sliding window attention (e.g. Gemma 4/Mistral 3), run this extreme test sequence:
 ```bash
 # 1. Start the server with a large sliding-window MoE model
