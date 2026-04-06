@@ -22,8 +22,6 @@ tar -xzf SwiftLM-<version>-macos-arm64.tar.gz
 ./SwiftLM --model mlx-community/Qwen2.5-3B-Instruct-4bit --port 5413
 ```
 
-> **⚠️ Metal GPU Error?** If you see `Failed to load the default metallib`, make sure `mlx.metallib` is co-located with the `SwiftLM` binary.
-
 ### Build from Source
 
 The build script handles everything: submodules, cmake, Metal kernel compilation, and the Swift build.
