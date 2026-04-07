@@ -194,4 +194,36 @@ final class MemoryPalaceService {
         let mCount = try context.fetchCount(FetchDescriptor<MemoryEntry>())
         return (wings: wCount, rooms: rCount, memories: mCount)
     }
+    
+    // MARK: - Tier 5: Temporal Knowledge Graph
+    
+    @discardableResult
+    func addTriple(subject: String, predicate: String, object: String) throws -> Bool {
+        guard let context = modelContext else { throw URLError(.badServerResponse) }
+        
+        let targetId = "\(subject.lowercased())_\(predicate.lowercased())"
+        let fetchDesc = FetchDescriptor<KnowledgeGraphTriple>(predicate: #Predicate { $0.id == targetId })
+        
+        if let existing = try context.fetch(fetchDesc).first {
+            // Temporal Invalidation: overwrite older beliefs
+            existing.object = object
+            existing.dateObserved = Date()
+        } else {
+            let triple = KnowledgeGraphTriple(subject: subject, predicate: predicate, object: object)
+            context.insert(triple)
+        }
+        
+        try context.save()
+        return true
+    }
+    
+    func queryEntity(_ subject: String) throws -> [KnowledgeGraphTriple] {
+        guard let context = modelContext else { throw URLError(.badServerResponse) }
+        let targetSubj = subject.lowercased()
+        let fetchDesc = FetchDescriptor<KnowledgeGraphTriple>()
+        
+        // Cannot use lowercased() easily in SwiftData predicates sometimes, so fetch & filter natively for stability
+        let allTriples = try context.fetch(fetchDesc)
+        return allTriples.filter { $0.subject.lowercased() == targetSubj }
+    }
 }

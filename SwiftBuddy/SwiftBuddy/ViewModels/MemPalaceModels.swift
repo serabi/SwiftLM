@@ -47,3 +47,20 @@ final class MemoryEntry {
         self.room = room
     }
 }
+
+@Model
+final class KnowledgeGraphTriple {
+    @Attribute(.unique) var id: String // e.g. "subject_predicate"
+    var subject: String
+    var predicate: String
+    var object: String
+    var dateObserved: Date
+    
+    init(subject: String, predicate: String, object: String, dateObserved: Date = Date()) {
+        self.id = "\(subject.lowercased())_\(predicate.lowercased())" // Enforce temporal overwrite (one predicate per subject)
+        self.subject = subject
+        self.predicate = predicate
+        self.object = object
+        self.dateObserved = dateObserved
+    }
+}

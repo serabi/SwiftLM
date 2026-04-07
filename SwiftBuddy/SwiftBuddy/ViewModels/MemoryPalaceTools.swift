@@ -105,6 +105,36 @@ public struct MemoryPalaceTools {
                         "required": ["wing", "room"]
                     ]
                 ]
+            ],
+            [
+                "type": "function",
+                "function": [
+                    "name": "mempalace_kg_add",
+                    "description": "Add a structured entity relationship (triple) into the Temporal Knowledge Graph.",
+                    "parameters": [
+                        "type": "object",
+                        "properties": [
+                            "subject": ["type": "string"],
+                            "predicate": ["type": "string"],
+                            "object": ["type": "string"]
+                        ],
+                        "required": ["subject", "predicate", "object"]
+                    ]
+                ]
+            ],
+            [
+                "type": "function",
+                "function": [
+                    "name": "mempalace_kg_query",
+                    "description": "Query all properties and relations mapped to a specific entity.",
+                    "parameters": [
+                        "type": "object",
+                        "properties": [
+                            "entity": ["type": "string"]
+                        ],
+                        "required": ["entity"]
+                    ]
+                ]
             ]
         ]
     }
@@ -167,6 +197,20 @@ public struct MemoryPalaceTools {
             guard let wing = arguments["wing"] as? String,
                   let room = arguments["room"] as? String else { return "Error: Missing arguments" }
             return try MemoryPalaceService.shared.getCloset(wingName: wing, roomName: room)
+            
+        case "mempalace_kg_add":
+            guard let subject = arguments["subject"] as? String,
+                  let predicate = arguments["predicate"] as? String,
+                  let object = arguments["object"] as? String else { return "Error: Missing KG triple arguments" }
+            try MemoryPalaceService.shared.addTriple(subject: subject, predicate: predicate, object: object)
+            return "Knowledge Graph Triple Saved: [\(subject)] - \(predicate) -> [\(object)]"
+            
+        case "mempalace_kg_query":
+            guard let entity = arguments["entity"] as? String else { return "Error: Missing entity argument" }
+            let triples = try MemoryPalaceService.shared.queryEntity(entity)
+            if triples.isEmpty { return "No knowledge properties found for entity: \(entity)" }
+            let lines = triples.map { "- \($0.predicate): \($0.object)" }
+            return "Entity: \(entity)\n" + lines.joined(separator: "\n")
             
         default:
             return "Unknown tool call: \(name)"

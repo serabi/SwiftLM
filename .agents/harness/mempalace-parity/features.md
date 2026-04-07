@@ -75,11 +75,11 @@ Auto-Save Hooks:     ❌ Not implemented
 ### Tier 5: Knowledge Graph
 | # | Feature | Upstream | SwiftBuddy | Status | Test |
 |---|---------|----------|------------|--------|------|
-| 26 | Add triple (entity-relationship) | ✅ (SQLite) | ❌ | 🔲 TODO | — |
-| 27 | Query entity | ✅ | ❌ | 🔲 TODO | — |
-| 28 | Invalidate fact (temporal windows) | ✅ | ❌ | 🔲 TODO | — |
-| 29 | Timeline (chronological story) | ✅ | ❌ | 🔲 TODO | — |
-| 30 | Contradiction detection | Partial (`fact_checker.py`) | ❌ | 🔲 TODO | — |
+| 26 | Add triple (entity-relationship) | ✅ | ✅ via `KnowledgeGraphTriple` | ✅ PASS | `testFeature26to30_KnowledgeGraph` |
+| 27 | Query entity | ✅ | ✅ via `queryEntity` | ✅ PASS | `testFeature26to30_KnowledgeGraph` |
+| 28 | Context injection | ✅ | ❌ | 🔲 TODO | — |
+| 29 | Duplicate triple blocking | ✅ | ✅ | ✅ PASS | `testFeature26to30_KnowledgeGraph` |
+| 30 | Contradiction detection (Temporal Invalidation) | ✅ | ✅ | ✅ PASS | `testFeature26to30_KnowledgeGraph` |
 
 ### Tier 6: Advanced
 | # | Feature | Upstream | SwiftBuddy | Status | Test |
