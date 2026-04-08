@@ -19,6 +19,8 @@ let package = Package(
         .package(url: "https://github.com/hummingbird-project/hummingbird", from: "2.0.0"),
         // Async argument parser (for CLI flags: --model, --port)
         .package(url: "https://github.com/apple/swift-argument-parser", from: "1.3.0"),
+        // Structured logging facade
+        .package(url: "https://github.com/apple/swift-log", from: "1.5.0"),
     ],
     targets: [
         // ── CLI HTTP server (macOS only) ──────────────────────────────
@@ -33,6 +35,7 @@ let package = Package(
                 .product(name: "Transformers", package: "swift-transformers"),
                 .product(name: "Hummingbird", package: "hummingbird"),
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
+                .product(name: "Logging", package: "swift-log"),
             ],
             path: "Sources/SwiftLM"
         ),
