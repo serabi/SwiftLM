@@ -2,50 +2,19 @@ import Foundation
 
 final class ProgressTracker {
     var isDone = false
-    var spinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"]
+    var spinnerFrames = ["\u{280B}", "\u{2819}", "\u{2839}", "\u{2838}", "\u{283C}", "\u{2834}", "\u{2826}", "\u{2827}", "\u{2807}", "\u{280F}"]
     var frameIndex = 0
     let modelId: String
     private var trackingTask: Task<Void, Never>?
     private var lastUpdate: TimeInterval = 0
-    private var lastBytes: Int64 = 0
-    private var speedStr = "0.0 MB/s"
 
     init(modelId: String) {
         self.modelId = modelId
     }
 
-    func getDownloadedBytes() -> Int64 {
-        let home = FileManager.default.homeDirectoryForCurrentUser
-        let hubFolderName = "models--" + modelId.replacingOccurrences(of: "/", with: "--")
-        // Check all possible download locations:
-        // 1. SwiftLM's HubApi downloadBase uses: ~/Library/Application Support/MLX/HuggingFace/models/<org>/<model>/
-        // 2. Standard HuggingFace Hub cache uses: ~/.cache/huggingface/hub/models--<org>--<model>/
-        let appSupportDir = URL.applicationSupportDirectory
-            .appendingPathComponent("MLX/HuggingFace/models/\(modelId)")
-        let modelHubDir = home.appendingPathComponent(".cache/huggingface/hub/\(hubFolderName)")
-        let downloadDir = home.appendingPathComponent(".cache/huggingface/download")
-
-        func sumDir(_ dir: URL) -> Int64 {
-            var total: Int64 = 0
-            if let enumerator = FileManager.default.enumerator(at: dir, includingPropertiesForKeys: [.fileSizeKey]) {
-                for case let file as URL in enumerator {
-                    if let attr = try? file.resourceValues(forKeys: [.fileSizeKey, .isSymbolicLinkKey]),
-                       let size = attr.fileSize,
-                       attr.isSymbolicLink != true {
-                        total += Int64(size)
-                    }
-                }
-            }
-            return total
-        }
-
-        return sumDir(appSupportDir) + sumDir(modelHubDir) + sumDir(downloadDir)
-    }
-
     func printProgress(_ progress: Progress) {
         if trackingTask == nil {
             lastUpdate = Date().timeIntervalSince1970
-            lastBytes = getDownloadedBytes()
 
             trackingTask = Task {
                 while !self.isDone && !Task.isCancelled {
@@ -56,27 +25,16 @@ final class ProgressTracker {
                     let interval = now - self.lastUpdate
                     if interval >= 0.25 {
                         self.frameIndex = (self.frameIndex + 1) % self.spinnerFrames.count
-
-                        let currentBytes = self.getDownloadedBytes()
-                        let diff = Double(currentBytes - self.lastBytes)
-                        if diff >= 0 {
-                            let speedMBps = (diff / interval) / 1_048_576.0
-                            self.speedStr = String(format: "%.1f MB/s", speedMBps)
-                        } else {
-                            // File moved/cleaned up cache, omit negative speed
-                        }
-
-                        self.lastBytes = currentBytes
                         self.lastUpdate = now
                     }
 
-                    var completedMB = String(format: "%.1f", Double(self.lastBytes) / 1_048_576)
-                    var totalMB = "???"
-                    if fraction > 0.001 {
-                        let extrapolated = (Double(self.lastBytes) / fraction) / 1_048_576.0
-                        totalMB = String(format: "%.1f", extrapolated)
-                    } else if fraction == 0.0 {
-                         completedMB = "0.0"
+                    // Read speed directly from HuggingFace Hub's Progress object
+                    let speedBytesPerSec = progress.userInfo[.throughputKey] as? Double
+                    let speedStr: String
+                    if let speed = speedBytesPerSec {
+                        speedStr = String(format: "%.1f MB/s", speed / 1_048_576.0)
+                    } else {
+                        speedStr = "-- MB/s"
                     }
 
                     let barLength = 20
@@ -91,11 +49,11 @@ final class ProgressTracker {
 
                     let pctStr = String(format: "%3d%%", pct)
                     let spinner = self.spinnerFrames[self.frameIndex]
-                    let speedText = "| Speed: \(self.speedStr)"
 
-                    let msg = String(format: "\r[SwiftLM] Download: [%@] %@ %@ (%@ MB / %@ MB) %@", bars, pctStr, spinner, completedMB, totalMB, speedText)
+                    let msg = String(format: "\r[SwiftLM] Download: [%@] %@ %@ | Speed: %@",
+                                     bars, pctStr, spinner, speedStr)
 
-                    print(msg.padding(toLength: 100, withPad: " ", startingAt: 0), terminator: "")
+                    print(msg.padding(toLength: 80, withPad: " ", startingAt: 0), terminator: "")
                     fflush(stdout)
 
                     if fraction >= 1.0 {

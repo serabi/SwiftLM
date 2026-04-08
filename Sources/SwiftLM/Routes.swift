@@ -94,5 +94,10 @@ func buildRouter(
         await handleMetrics(isSSDStream: isSSDStream, stats: stats)
     }
 
+    // Human-friendly stats
+    router.get("/stats") { _, _ -> Response in
+        await handleStats(modelId: modelId, stats: stats)
+    }
+
     return router
 }

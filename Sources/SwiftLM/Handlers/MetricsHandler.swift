@@ -69,6 +69,71 @@ func handleMetrics(
     )
 }
 
+// MARK: - Stats
+
+struct StatsResponse: Encodable {
+    let model: String
+    let tokensPerSec: Double
+    let requestsTotal: Int
+    let requestsActive: Int
+    let tokensGenerated: Int
+    let uptimeSeconds: Double
+    let memory: StatsMemory
+
+    enum CodingKeys: String, CodingKey {
+        case model
+        case tokensPerSec = "tokens_per_sec"
+        case requestsTotal = "requests_total"
+        case requestsActive = "requests_active"
+        case tokensGenerated = "tokens_generated"
+        case uptimeSeconds = "uptime_seconds"
+        case memory
+    }
+}
+
+struct StatsMemory: Encodable {
+    let activeMb: Int
+    let peakMb: Int
+    let cacheMb: Int
+
+    enum CodingKeys: String, CodingKey {
+        case activeMb = "active_mb"
+        case peakMb = "peak_mb"
+        case cacheMb = "cache_mb"
+    }
+}
+
+func handleStats(modelId: String, stats: ServerStats) async -> Response {
+    let snapshot = await stats.snapshot()
+    let response = StatsResponse(
+        model: modelId,
+        tokensPerSec: round(snapshot.avgTokensPerSec * 100) / 100,
+        requestsTotal: snapshot.requestsTotal,
+        requestsActive: snapshot.requestsActive,
+        tokensGenerated: snapshot.tokensGenerated,
+        uptimeSeconds: round(snapshot.uptimeSeconds * 10) / 10,
+        memory: StatsMemory(
+            activeMb: Memory.activeMemory / (1024 * 1024),
+            peakMb: Memory.peakMemory / (1024 * 1024),
+            cacheMb: Memory.cacheMemory / (1024 * 1024)
+        )
+    )
+    do {
+        let data = try JSONEncoder().encode(response)
+        return Response(
+            status: .ok,
+            headers: jsonHeaders(),
+            body: .init(byteBuffer: ByteBuffer(data: data))
+        )
+    } catch {
+        return Response(
+            status: .internalServerError,
+            headers: jsonHeaders(),
+            body: .init(byteBuffer: ByteBuffer(string: "{\"error\":\"encoding_failed\"}"))
+        )
+    }
+}
+
 // MARK: - Model List
 
 func handleModelList(modelId: String) -> Response {
