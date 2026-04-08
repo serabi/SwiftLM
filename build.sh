@@ -25,6 +25,10 @@ if ! command -v cmake &> /dev/null; then
     brew install cmake
 fi
 echo "   cmake: $(cmake --version | head -1)"
+if ! xcrun --find metal &> /dev/null; then
+    echo "Metal Toolchain not found. Downloading..."
+    xcodebuild -downloadComponent MetalToolchain
+fi
 
 # --- 3. Build the Metal kernel library (mlx.metallib) from source ---
 echo ""
