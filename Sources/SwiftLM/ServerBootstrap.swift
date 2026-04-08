@@ -279,7 +279,7 @@ struct ServerBootstrap {
             "engine": "mlx",
             "vision": isVision
         ]
-        if var plan = partitionPlan {
+        if let plan = partitionPlan {
             var info = plan.healthInfo
             if options.streamExperts {
                 info["strategy"] = "ssd_streaming"

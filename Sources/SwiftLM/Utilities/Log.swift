@@ -4,7 +4,9 @@ enum Log {
     static var logger = Logger(label: "com.swiftlm.server")
 
     static func bootstrap() {
-        LoggingSystem.bootstrap(StreamLogHandler.standardOutput)
+        LoggingSystem.bootstrap { label in
+            StreamLogHandler.standardOutput(label: label)
+        }
     }
 
     static func info(_ message: String) {
