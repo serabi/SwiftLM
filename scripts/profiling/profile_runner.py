@@ -76,8 +76,8 @@ def poll_health(port=5413, timeout=30, model_id="", model_size_gb=0, check_overc
     url = f"http://127.0.0.1:{port}/health"
     total_bytes = int(model_size_gb * 1024**3) if model_size_gb > 0 else 0
     spin_idx = 0
-    last_bytes = 0
-    last_time = time.time()
+    initial_bytes = get_hf_cache_bytes(model_id) if (model_id and total_bytes > 0) else 0
+    start_dl_time = time.time()
     last_speed = 0.0
     downloading = False
     
@@ -87,13 +87,12 @@ def poll_health(port=5413, timeout=30, model_id="", model_size_gb=0, check_overc
             current_bytes = get_hf_cache_bytes(model_id)
             now = time.time()
             
-            dt = now - last_time
-            if dt >= 0.5:
-                speed = (current_bytes - last_bytes) / dt / (1024**2) if dt > 0 else 0
-                if speed > 0:
-                    last_speed = speed
-                last_bytes = current_bytes
-                last_time = now
+            dt_total = now - start_dl_time
+            if dt_total >= 1.0:
+                # Calculate true average speed to smooth out APFS chunk jumps
+                active_downloaded = current_bytes - initial_bytes
+                if active_downloaded > 0:
+                    last_speed = active_downloaded / dt_total / (1024**2)
             
             pct = min(current_bytes / total_bytes * 100, 100) if total_bytes > 0 else 0
             downloaded_gb = current_bytes / (1024**3)
@@ -283,7 +282,7 @@ def main():
         requires_dense_memory = "--stream-experts" not in config["flags"]
         is_healthy, overcommitted = poll_health(
             port=5413, 
-            timeout=120,
+            timeout=1800,
             model_id=model_id,
             model_size_gb=model_size_gb,
             check_overcommit_log=log_path, 
