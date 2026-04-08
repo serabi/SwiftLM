@@ -1,8 +1,7 @@
 # SwiftLM
 
-A native Swift inference server for Apple Silicon that serves [MLX](https://github.com/ml-explore/mlx) models through an **OpenAI-compatible API**.
+A native Swift inference server for Apple Silicon that serves [MLX](https://github.com/ml-explore/mlx) models through an **OpenAI-compatible API**. Fork of [SharpAI/SwiftLM](https://github.com/SharpAI/SwiftLM) with a refactored modular codebase, structured logging, and improved developer experience.
 
-No Python runtime, no GIL, no unnecessary memory copies. Compiles to a single binary.
 
 <p align="center">
   <a href="https://youtu.be/E9vR5FREhMg"><img src="docs/mac_demo.gif" width="720" alt="SwiftLM Mac demo" /></a>
