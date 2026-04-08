@@ -49,7 +49,7 @@ public actor ModelDownloader {
 
     private lazy var backgroundSession: URLSession = {
         let config = URLSessionConfiguration.background(
-            withIdentifier: "com.sharpai.swiftlmchat.modeldownload"
+            withIdentifier: "com.swiftbuddy.modeldownload"
         )
         config.isDiscretionary = false
         config.sessionSendsLaunchEvents = true

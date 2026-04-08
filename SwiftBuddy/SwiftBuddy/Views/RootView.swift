@@ -20,11 +20,16 @@ struct RootView: View {
             #if os(macOS)
             macOSLayout
                 .sheet(isPresented: $showModelPicker) {
-                    ModelPickerView(onSelect: { modelId in
-                        showModelPicker = false
-                        Task { await engine.load(modelId: modelId) }
-                    })
-                    .environmentObject(engine)
+                    NavigationStack {
+                        ModelsView(viewModel: viewModel)
+                            .environmentObject(engine)
+                            .toolbar {
+                                ToolbarItem(placement: .cancellationAction) {
+                                    Button("Done") { showModelPicker = false }
+                                        .foregroundStyle(SwiftBuddyTheme.accent)
+                                }
+                            }
+                    }
                 }
                 .sheet(isPresented: $showSettings) {
                     SettingsView(viewModel: viewModel)

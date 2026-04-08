@@ -243,8 +243,6 @@ struct SettingsView: View {
         .tint(SwiftBuddyTheme.accent)
     }
 
-    @State private var tempEngine: InferenceEngine? = nil
-
     private var autoOffloadRow: some View {
         // We can't easily get the engine here without prop drilling,
         // so we persist via UserDefaults and InferenceEngine reads it on next launch.

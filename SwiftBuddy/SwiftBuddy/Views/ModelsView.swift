@@ -9,6 +9,7 @@ struct ModelsView: View {
     @State private var showHFSearch = false
     @State private var showManagement = false
     @State private var device = DeviceProfile.current
+    @State private var pendingCellularModelId: String? = nil
 
     private var dm: ModelDownloadManager { engine.downloadManager }
 
@@ -18,10 +19,26 @@ struct ModelsView: View {
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
+                    // ── Offline banner ────────────────────────────────────
+                    if dm.isOffline {
+                        HStack(spacing: 8) {
+                            Image(systemName: "wifi.slash")
+                                .foregroundStyle(SwiftBuddyTheme.warning)
+                            Text("Offline -- only downloaded models available")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                            Spacer()
+                        }
+                        .padding(12)
+                        .glassCard(cornerRadius: SwiftBuddyTheme.radiusMedium)
+                        .padding(.horizontal)
+                        .padding(.top, 12)
+                    }
+
                     // ── 1. Active model hero card ──────────────────────────
                     activeModelCard
                         .padding(.horizontal)
-                        .padding(.top, 16)
+                        .padding(.top, dm.isOffline ? 8 : 16)
                         .padding(.bottom, 14)
 
                     // ── 2. Active downloads ────────────────────────────────
@@ -176,6 +193,24 @@ struct ModelsView: View {
             ModelManagementView()
                 .environmentObject(engine)
         }
+        .alert(
+            "Use Cellular Data?",
+            isPresented: Binding(
+                get: { pendingCellularModelId != nil },
+                set: { if !$0 { pendingCellularModelId = nil } }
+            )
+        ) {
+            Button("Download") {
+                if let id = pendingCellularModelId {
+                    showHFSearch = false
+                    Task { await engine.load(modelId: id) }
+                }
+                pendingCellularModelId = nil
+            }
+            Button("Cancel", role: .cancel) { pendingCellularModelId = nil }
+        } message: {
+            Text("This model is large. Downloading over cellular may incur data charges.")
+        }
     }
 
     // MARK: — Helpers
@@ -196,8 +231,13 @@ struct ModelsView: View {
     }
 
     private func handleSelect(_ modelId: String) {
-        showHFSearch = false
-        Task { await engine.load(modelId: modelId) }
+        if dm.isOffline && !dm.isDownloaded(modelId) { return }
+        if dm.shouldWarnForCellular(modelId: modelId) && !dm.isDownloaded(modelId) {
+            pendingCellularModelId = modelId
+        } else {
+            showHFSearch = false
+            Task { await engine.load(modelId: modelId) }
+        }
     }
 }
 

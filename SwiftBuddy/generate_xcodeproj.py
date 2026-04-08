@@ -19,6 +19,8 @@ SOURCES_GRP   = uid()
 CORE_GRP      = uid()
 VIEWS_GRP     = uid()
 VIEWMODELS_GRP= uid()
+COMPONENTS_GRP= uid()
+EXTENSIONS_GRP= uid()
 PRODUCTS_GRP  = uid()
 APP_PRODUCT   = uid()
 APP_TARGET    = uid()
@@ -51,16 +53,31 @@ ASSETS_BF     = uid()
 
 # ── App source files (relative to SwiftBuddy/)
 app_sources = [
-    ("SwiftBuddy/SwiftBuddyApp.swift",          uid(), uid()),
-    ("SwiftBuddy/Theme.swift",                   uid(), uid()),
-    ("SwiftBuddy/Views/RootView.swift",           uid(), uid()),
-    ("SwiftBuddy/Views/ChatView.swift",           uid(), uid()),
-    ("SwiftBuddy/Views/MessageBubble.swift",      uid(), uid()),
-    ("SwiftBuddy/Views/ModelsView.swift",         uid(), uid()),
-    ("SwiftBuddy/Views/ModelPickerView.swift",    uid(), uid()),
-    ("SwiftBuddy/Views/ModelManagementView.swift",uid(), uid()),
-    ("SwiftBuddy/Views/SettingsView.swift",       uid(), uid()),
-    ("SwiftBuddy/ViewModels/ChatViewModel.swift", uid(), uid()),
+    # Root
+    ("SwiftBuddy/SwiftBuddyApp.swift",              uid(), uid()),
+    ("SwiftBuddy/AppearanceStore.swift",             uid(), uid()),
+    ("SwiftBuddy/Theme.swift",                       uid(), uid()),
+    # Views
+    ("SwiftBuddy/Views/RootView.swift",              uid(), uid()),
+    ("SwiftBuddy/Views/ChatView.swift",              uid(), uid()),
+    ("SwiftBuddy/Views/MessageBubble.swift",         uid(), uid()),
+    ("SwiftBuddy/Views/ModelsView.swift",            uid(), uid()),
+    ("SwiftBuddy/Views/ModelManagementView.swift",   uid(), uid()),
+    ("SwiftBuddy/Views/SettingsView.swift",          uid(), uid()),
+    # ViewModels
+    ("SwiftBuddy/ViewModels/ChatViewModel.swift",    uid(), uid()),
+    # Components
+    ("SwiftBuddy/Components/ThemedBadge.swift",      uid(), uid()),
+    ("SwiftBuddy/Components/GeneratingDots.swift",   uid(), uid()),
+    ("SwiftBuddy/Components/AvatarView.swift",       uid(), uid()),
+    ("SwiftBuddy/Components/BubbleShapes.swift",     uid(), uid()),
+    ("SwiftBuddy/Components/ThinkingPanel.swift",    uid(), uid()),
+    ("SwiftBuddy/Components/BlinkingCursor.swift",   uid(), uid()),
+    ("SwiftBuddy/Components/BouncingDot.swift",      uid(), uid()),
+    ("SwiftBuddy/Components/FlowLayout.swift",       uid(), uid()),
+    ("SwiftBuddy/Components/HFSearchTab.swift",      uid(), uid()),
+    # Extensions
+    ("SwiftBuddy/Extensions/ModelState+UI.swift",    uid(), uid()),
 ]
 
 # ── MLXInferenceCore sources (path relative to SwiftBuddy/)
@@ -113,6 +130,14 @@ def pbxproj():
     viewmodel_children = "\n".join(
         f"\t\t\t\t{fref} /* {Path(p).name} */,"
         for p, fref, _ in app_sources if "ViewModels/" in p
+    )
+    components_children = "\n".join(
+        f"\t\t\t\t{fref} /* {Path(p).name} */,"
+        for p, fref, _ in app_sources if "Components/" in p
+    )
+    extensions_children = "\n".join(
+        f"\t\t\t\t{fref} /* {Path(p).name} */,"
+        for p, fref, _ in app_sources if "Extensions/" in p
     )
     core_children = "\n".join(
         f"\t\t\t\t{fref} /* {Path(p).name} */,"
@@ -184,6 +209,8 @@ def pbxproj():
 {app_root_children}
 \t\t\t\t{VIEWS_GRP} /* Views */,
 \t\t\t\t{VIEWMODELS_GRP} /* ViewModels */,
+\t\t\t\t{COMPONENTS_GRP} /* Components */,
+\t\t\t\t{EXTENSIONS_GRP} /* Extensions */,
 \t\t\t\t{ASSETS_REF} /* Assets.xcassets */,
 \t\t\t);
 \t\t\tpath = SwiftBuddy;
@@ -203,6 +230,22 @@ def pbxproj():
 {viewmodel_children}
 \t\t\t);
 \t\t\tpath = ViewModels;
+\t\t\tsourceTree = "<group>";
+\t\t}};
+\t\t{COMPONENTS_GRP} /* Components */ = {{
+\t\t\tisa = PBXGroup;
+\t\t\tchildren = (
+{components_children}
+\t\t\t);
+\t\t\tpath = Components;
+\t\t\tsourceTree = "<group>";
+\t\t}};
+\t\t{EXTENSIONS_GRP} /* Extensions */ = {{
+\t\t\tisa = PBXGroup;
+\t\t\tchildren = (
+{extensions_children}
+\t\t\t);
+\t\t\tpath = Extensions;
 \t\t\tsourceTree = "<group>";
 \t\t}};
 /* End PBXGroup section */
@@ -316,7 +359,7 @@ def pbxproj():
 \t\t\t\tCURRENT_PROJECT_VERSION = 1;
 \t\t\t\tGENERATE_INFOPLIST_FILE = YES;
 \t\t\t\tINFOPLIST_KEY_CFBundleDisplayName = "SwiftBuddy Chat";
-\t\t\t\tINFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 SharpAI";
+\t\t\t\tINFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2026 Sarah Wolff (Interactive Buffoonery)";
 \t\t\t\tINFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 \t\t\t\tINFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 \t\t\t\tINFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -325,7 +368,7 @@ def pbxproj():
 \t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = 17.0;
 \t\t\t\tMACOS_DEPLOYMENT_TARGET = 14.0;
 \t\t\t\tMARKETING_VERSION = 1.0;
-\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.sharpai.SwiftBuddy;
+\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.swiftbuddy.app;
 \t\t\t\tPRODUCT_NAME = "$(TARGET_NAME)";
 \t\t\t\tSDKROOT = auto;
 \t\t\t\tSUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
@@ -347,7 +390,7 @@ def pbxproj():
 \t\t\t\tIPHONEOS_DEPLOYMENT_TARGET = 17.0;
 \t\t\t\tMACOS_DEPLOYMENT_TARGET = 14.0;
 \t\t\t\tMARKETING_VERSION = 1.0;
-\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.sharpai.SwiftBuddy;
+\t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.swiftbuddy.app;
 \t\t\t\tPRODUCT_NAME = "$(TARGET_NAME)";
 \t\t\t\tSDKROOT = auto;
 \t\t\t\tSUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";

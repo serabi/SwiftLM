@@ -62,7 +62,7 @@ public final class ModelDownloadManager: ObservableObject {
 
     // MARK: Network monitoring
     private let monitor = NWPathMonitor()
-    private let monitorQueue = DispatchQueue(label: "com.sharpai.swiftlm.netmonitor")
+    private let monitorQueue = DispatchQueue(label: "com.swiftbuddy.netmonitor")
 
     // MARK: In-flight download tasks
     private var downloadTasks: [String: Task<Void, Error>] = [:]
