@@ -123,8 +123,7 @@ public enum ModelStorage {
                 .replacingOccurrences(of: "^models--", with: "", options: .regularExpression)
                 .replacingOccurrences(of: "--", with: "/")
 
-            // Only include models in our curated catalog
-            guard ModelCatalog.all.contains(where: { $0.id == modelId }) else { continue }
+            // Do NOT filter by ModelCatalog anymore => allow arbitrary downloaded Hugging Face models!
             guard isDownloaded(modelId) else { continue }  // skip partial downloads
 
             let modified = (try? dir.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate
