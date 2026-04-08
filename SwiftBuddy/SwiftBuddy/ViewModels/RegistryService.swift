@@ -8,6 +8,10 @@ struct GithubNode: Codable, Identifiable {
     let download_url: String?
 }
 
+struct PersonaRegistry: Codable {
+    let personas: [String]
+}
+
 @MainActor
 public final class RegistryService: ObservableObject {
     public static let shared = RegistryService()
@@ -16,16 +20,18 @@ public final class RegistryService: ObservableObject {
     @Published public var isSyncing: Bool = false
     @Published public var lastSyncLog: String = ""
     
-    private let repoUrl = "https://api.github.com/repos/SharpAI/swiftbuddy-registry/contents/personas"
+    private let repoBaseUrl = "https://raw.githubusercontent.com/SharpAI/swiftbuddy-registry/main"
     
     private init() {}
     
     public func fetchAvailablePersonas() async {
         isSyncing = true
         lastSyncLog = "Fetching cloud registry..."
-        print("[RegistryService] fetchAvailablePersonas started. URL: \(repoUrl)")
         
-        guard let url = URL(string: repoUrl) else { 
+        let manifestUrl = repoBaseUrl + "/persona.json"
+        print("[RegistryService] fetchAvailablePersonas started. URL: \(manifestUrl)")
+        
+        guard let url = URL(string: manifestUrl) else { 
             print("[RegistryService] Invalid URL structure.")
             isSyncing = false
             return 
@@ -45,13 +51,13 @@ public final class RegistryService: ObservableObject {
                 }
             }
             
-            if let nodes = try? JSONDecoder().decode([GithubNode].self, from: data) {
-                self.availablePersonas = nodes.filter { $0.type == "dir" }.map { $0.name }
+            if let registry = try? JSONDecoder().decode(PersonaRegistry.self, from: data) {
+                self.availablePersonas = registry.personas
                 lastSyncLog = "Found \(self.availablePersonas.count) characters in the cloud."
-                print("[RegistryService] Successfully mapped \(self.availablePersonas.count) nodes.")
+                print("[RegistryService] Successfully mapped \(self.availablePersonas.count) nodes from persona.json.")
             } else {
                 let bodyString = String(data: data, encoding: .utf8) ?? ""
-                print("[RegistryService] Failed to decode 404 or missing array format. Payload length: \(bodyString.count)")
+                print("[RegistryService] Failed to decode 404 or missing JSON format. Payload length: \(bodyString.count)")
                 // Fallback to local bundled localization
                 self.availablePersonas = ["Einstein_Localized"]
                 lastSyncLog = "Registry 404/Empty. Loaded bundled fallback persona."
@@ -97,33 +103,24 @@ public final class RegistryService: ObservableObject {
             return
         }
         
-        let personaUrl = repoUrl + "/\(name)"
-        guard let url = URL(string: personaUrl) else { return }
+        let rooms = ["BACKGROUND_STORY.txt", "CORE_IDENTITY.txt", "CORPUS.txt", "PREFERENCES.txt"]
+        var fetchedAny = false
         
-        var request = URLRequest(url: url)
-        request.setValue("SwiftBuddy-macOS/1.0", forHTTPHeaderField: "User-Agent")
-        
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            if let httpResponse = response as? HTTPURLResponse {
-                print("[RegistryService] Download \(name) HTTP Status: \(httpResponse.statusCode)")
-                if httpResponse.statusCode != 200 {
-                    let bodyString = String(data: data, encoding: .utf8) ?? "<binary/empty>"
-                    print("[RegistryService] GitHub response body: \(bodyString)")
-                }
-            }
+        for roomFile in rooms {
+            let roomName = roomFile.replacingOccurrences(of: ".txt", with: "")
+            let targetUrl = repoBaseUrl + "/personas/\(name)/\(roomFile)"
+            guard let url = URL(string: targetUrl) else { continue }
             
-            if let files = try? JSONDecoder().decode([GithubNode].self, from: data) {
-                for file in files where file.type == "file" && file.name.hasSuffix(".txt") {
-                    let roomName = file.name.replacingOccurrences(of: ".txt", with: "")
-                    guard let dlURLString = file.download_url, let dlURL = URL(string: dlURLString) else { continue }
-                    
-                    lastSyncLog = "Fetching \(roomName)..."
-                    
-                    var dlRequest = URLRequest(url: dlURL)
-                    dlRequest.setValue("SwiftBuddy-macOS/1.0", forHTTPHeaderField: "User-Agent")
-                    let (fileData, _) = try await URLSession.shared.data(for: dlRequest)
-                    guard let textContent = String(data: fileData, encoding: .utf8) else { continue }
+            lastSyncLog = "Fetching \(roomName)..."
+            
+            var request = URLRequest(url: url)
+            request.setValue("SwiftBuddy-macOS/1.0", forHTTPHeaderField: "User-Agent")
+            
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                    guard let textContent = String(data: data, encoding: .utf8), !textContent.isEmpty else { continue }
+                    fetchedAny = true
                     
                     let chunks = textContent.components(separatedBy: "\n\n")
                         .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -138,13 +135,15 @@ public final class RegistryService: ObservableObject {
                         )
                     }
                 }
-                lastSyncLog = "Successfully installed \(name.replacingOccurrences(of: "_", with: " "))!"
-            } else {
-                lastSyncLog = "Failed to parse persona files."
+            } catch {
+                print("[RegistryService] Network error downloading \(roomFile): \(error)")
             }
-        } catch {
-            print("[RegistryService] Network error downloading \(name): \(error)")
-            lastSyncLog = "Failed to download \(name): \(error.localizedDescription)"
+        }
+        
+        if fetchedAny {
+            lastSyncLog = "Successfully installed \(name.replacingOccurrences(of: "_", with: " "))!"
+        } else {
+             lastSyncLog = "Failed to download \(name)."
         }
         
         isSyncing = false
