@@ -38,15 +38,22 @@ TGT_RELEASE   = uid()
 PKG_MLX       = uid()
 PKG_MLXLM     = uid()
 
+# Remote SPM packages
+PKG_TRANSFORMERS = uid()
+
 # SPM product dependencies
 PROD_MLX      = uid()
 PROD_MLXLLM   = uid()
 PROD_MLXLMC   = uid()
+PROD_TOKENIZERS = uid()
+PROD_HUB      = uid()
 
 # Build files for SPM products (in Frameworks phase)
 BF_MLX_FWK    = uid()
 BF_MLXLLM_FWK = uid()
 BF_MLXLMC_FWK = uid()
+BF_TOKENIZERS_FWK = uid()
+BF_HUB_FWK    = uid()
 
 ASSETS_REF    = uid()
 ASSETS_BF     = uid()
@@ -89,6 +96,7 @@ core_sources = [
     ("../Sources/MLXInferenceCore/ModelDownloader.swift",      uid(), uid()),
     ("../Sources/MLXInferenceCore/ModelDownloadManager.swift", uid(), uid()),
     ("../Sources/MLXInferenceCore/HFModelSearch.swift",        uid(), uid()),
+    ("../Sources/MLXInferenceCore/TokenizerBridges.swift",     uid(), uid()),
     ("../Sources/MLXInferenceCore/InferenceEngine.swift",      uid(), uid()),
 ]
 
@@ -104,6 +112,8 @@ def pbxproj():
     build_files += f"\t\t{BF_MLX_FWK} /* MLX in Frameworks */ = {{isa = PBXBuildFile; productRef = {PROD_MLX} /* MLX */; }};\n"
     build_files += f"\t\t{BF_MLXLLM_FWK} /* MLXLLM in Frameworks */ = {{isa = PBXBuildFile; productRef = {PROD_MLXLLM} /* MLXLLM */; }};\n"
     build_files += f"\t\t{BF_MLXLMC_FWK} /* MLXLMCommon in Frameworks */ = {{isa = PBXBuildFile; productRef = {PROD_MLXLMC} /* MLXLMCommon */; }};\n"
+    build_files += f"\t\t{BF_TOKENIZERS_FWK} /* Tokenizers in Frameworks */ = {{isa = PBXBuildFile; productRef = {PROD_TOKENIZERS} /* Tokenizers */; }};\n"
+    build_files += f"\t\t{BF_HUB_FWK} /* Hub in Frameworks */ = {{isa = PBXBuildFile; productRef = {PROD_HUB} /* Hub */; }};\n"
 
     # PBXFileReference entries
     file_refs = ""
@@ -172,6 +182,8 @@ def pbxproj():
 \t\t\t\t{BF_MLX_FWK} /* MLX in Frameworks */,
 \t\t\t\t{BF_MLXLLM_FWK} /* MLXLLM in Frameworks */,
 \t\t\t\t{BF_MLXLMC_FWK} /* MLXLMCommon in Frameworks */,
+\t\t\t\t{BF_TOKENIZERS_FWK} /* Tokenizers in Frameworks */,
+\t\t\t\t{BF_HUB_FWK} /* Hub in Frameworks */,
 \t\t\t);
 \t\t\trunOnlyForDeploymentPostprocessing = 0;
 \t\t}};
@@ -266,6 +278,8 @@ def pbxproj():
 \t\t\t\t{PROD_MLX} /* MLX */,
 \t\t\t\t{PROD_MLXLLM} /* MLXLLM */,
 \t\t\t\t{PROD_MLXLMC} /* MLXLMCommon */,
+\t\t\t\t{PROD_TOKENIZERS} /* Tokenizers */,
+\t\t\t\t{PROD_HUB} /* Hub */,
 \t\t\t);
 \t\t\tproductName = SwiftBuddy;
 \t\t\tproductReference = {APP_PRODUCT};
@@ -295,6 +309,7 @@ def pbxproj():
 \t\t\tpackageReferences = (
 \t\t\t\t{PKG_MLX} /* XCLocalSwiftPackageReference "mlx-swift" */,
 \t\t\t\t{PKG_MLXLM} /* XCLocalSwiftPackageReference "mlx-swift-lm" */,
+\t\t\t\t{PKG_TRANSFORMERS} /* XCRemoteSwiftPackageReference "swift-transformers" */,
 \t\t\t);
 \t\t\tproductsGroup = {PRODUCTS_GRP};
 \t\t\tprojectDirPath = "";
@@ -428,6 +443,17 @@ def pbxproj():
 \t\t}};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+\t\t{PKG_TRANSFORMERS} /* XCRemoteSwiftPackageReference "swift-transformers" */ = {{
+\t\t\tisa = XCRemoteSwiftPackageReference;
+\t\t\trepositoryURL = "https://github.com/huggingface/swift-transformers";
+\t\t\trequirement = {{
+\t\t\t\tkind = upToNextMinorVersion;
+\t\t\t\tminimumVersion = "1.2.0";
+\t\t\t}};
+\t\t}};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 \t\t{PROD_MLX} /* MLX */ = {{
 \t\t\tisa = XCSwiftPackageProductDependency;
@@ -443,6 +469,16 @@ def pbxproj():
 \t\t\tisa = XCSwiftPackageProductDependency;
 \t\t\tpackage = {PKG_MLXLM};
 \t\t\tproductName = MLXLMCommon;
+\t\t}};
+\t\t{PROD_TOKENIZERS} /* Tokenizers */ = {{
+\t\t\tisa = XCSwiftPackageProductDependency;
+\t\t\tpackage = {PKG_TRANSFORMERS};
+\t\t\tproductName = Tokenizers;
+\t\t}};
+\t\t{PROD_HUB} /* Hub */ = {{
+\t\t\tisa = XCSwiftPackageProductDependency;
+\t\t\tpackage = {PKG_TRANSFORMERS};
+\t\t\tproductName = Hub;
 \t\t}};
 /* End XCSwiftPackageProductDependency section */
 
