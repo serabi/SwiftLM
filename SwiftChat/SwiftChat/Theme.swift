@@ -1,4 +1,4 @@
-// Theme.swift — SwiftBuddy Chat design system
+// Theme.swift — SwiftChat design system
 // Single source of truth for colors, gradients, radii, and animations.
 import SwiftUI
 
@@ -6,7 +6,7 @@ import SwiftUI
 // MARK: — Color Tokens
 // ─────────────────────────────────────────────────────────────────────────────
 
-public enum SwiftBuddyTheme {
+public enum SwiftChatTheme {
 
     // ── Background layers ─────────────────────────────────────────────────────
     /// Deep navy-black canvas — the app's primary background.
@@ -121,15 +121,15 @@ public enum SwiftBuddyTheme {
 
 extension View {
     /// Apply a glowing indigo ring — used on focused input and hero cards.
-    func glowRing(color: Color = SwiftBuddyTheme.accent, radius: CGFloat = 8, active: Bool = true) -> some View {
+    func glowRing(color: Color = SwiftChatTheme.accent, radius: CGFloat = 8, active: Bool = true) -> some View {
         self.shadow(color: active ? color.opacity(0.55) : .clear, radius: radius)
     }
 
     /// Glassmorphic card surface.
-    func glassCard(cornerRadius: CGFloat = SwiftBuddyTheme.radiusMedium) -> some View {
+    func glassCard(cornerRadius: CGFloat = SwiftChatTheme.radiusMedium) -> some View {
         self
             .background(.ultraThinMaterial)
-            .background(SwiftBuddyTheme.surface.opacity(0.65))
+            .background(SwiftChatTheme.surface.opacity(0.65))
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             .overlay(
                 RoundedRectangle(cornerRadius: cornerRadius)

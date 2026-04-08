@@ -8,7 +8,7 @@ struct BouncingDot: View {
     var body: some View {
         Circle()
             .frame(width: 7, height: 7)
-            .foregroundStyle(SwiftBuddyTheme.textSecondary)
+            .foregroundStyle(SwiftChatTheme.textSecondary)
             .offset(y: bouncing ? -5 : 0)
             .animation(
                 .easeInOut(duration: 0.45)

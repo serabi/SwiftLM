@@ -12,7 +12,7 @@ struct AvatarView: View {
             // Outer glow ring when generating
             if isGenerating {
                 Circle()
-                    .stroke(SwiftBuddyTheme.accent.opacity(pulse ? 0.55 : 0.15), lineWidth: 2)
+                    .stroke(SwiftChatTheme.accent.opacity(pulse ? 0.55 : 0.15), lineWidth: 2)
                     .frame(width: size + 8, height: size + 8)
                     .scaleEffect(pulse ? 1.12 : 1.0)
                     .animation(
@@ -23,7 +23,7 @@ struct AvatarView: View {
 
             // Avatar circle
             Circle()
-                .fill(SwiftBuddyTheme.avatarGradient)
+                .fill(SwiftChatTheme.avatarGradient)
                 .frame(width: size, height: size)
                 .overlay(
                     Image(systemName: "bolt.fill")

@@ -14,24 +14,24 @@ struct HFSearchTab: View {
             VStack(spacing: 8) {
                 HStack {
                     Image(systemName: "magnifyingglass")
-                        .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                        .foregroundStyle(SwiftChatTheme.textSecondary)
                     TextField("Search MLX models...", text: $query)
                         .textFieldStyle(.plain)
                         .autocorrectionDisabled()
                     if !query.isEmpty {
                         Button { query = "" } label: {
                             Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                                .foregroundStyle(SwiftChatTheme.textSecondary)
                         }
                         .buttonStyle(.plain)
                     }
                 }
                 .padding(10)
-                .background(SwiftBuddyTheme.surface.opacity(0.60))
+                .background(SwiftChatTheme.surface.opacity(0.60))
                 .clipShape(RoundedRectangle(cornerRadius: 10))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
-                        .strokeBorder(SwiftBuddyTheme.divider, lineWidth: 1)
+                        .strokeBorder(SwiftChatTheme.divider, lineWidth: 1)
                 )
 
                 // Sort chips
@@ -47,10 +47,10 @@ struct HFSearchTab: View {
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 5)
                                     .background(
-                                        sort == option ? SwiftBuddyTheme.accent : SwiftBuddyTheme.surface.opacity(0.60),
+                                        sort == option ? SwiftChatTheme.accent : SwiftChatTheme.surface.opacity(0.60),
                                         in: Capsule()
                                     )
-                                    .foregroundStyle(sort == option ? .white : SwiftBuddyTheme.textPrimary)
+                                    .foregroundStyle(sort == option ? .white : SwiftChatTheme.textPrimary)
                             }
                             .buttonStyle(.plain)
                         }
@@ -60,23 +60,23 @@ struct HFSearchTab: View {
             .padding(.horizontal)
             .padding(.bottom, 8)
 
-            Divider().background(SwiftBuddyTheme.divider)
+            Divider().background(SwiftChatTheme.divider)
 
             // Results
             if service.isSearching && service.results.isEmpty {
                 Spacer()
                 ProgressView("Searching HuggingFace...")
-                    .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                    .foregroundStyle(SwiftChatTheme.textSecondary)
                 Spacer()
             } else if let err = service.errorMessage {
                 Spacer()
                 VStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.largeTitle)
-                        .foregroundStyle(SwiftBuddyTheme.warning)
+                        .foregroundStyle(SwiftChatTheme.warning)
                     Text(err)
                         .font(.subheadline)
-                        .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                        .foregroundStyle(SwiftChatTheme.textSecondary)
                         .multilineTextAlignment(.center)
                 }
                 .padding()
@@ -86,10 +86,10 @@ struct HFSearchTab: View {
                 VStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
                         .font(.largeTitle)
-                        .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                        .foregroundStyle(SwiftChatTheme.textSecondary)
                     Text("No MLX models found for \"\(query)\"")
                         .font(.subheadline)
-                        .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                        .foregroundStyle(SwiftChatTheme.textSecondary)
                 }
                 Spacer()
             } else {
@@ -102,7 +102,7 @@ struct HFSearchTab: View {
                             Spacer()
                             Button("Load More") { service.loadMore() }
                                 .buttonStyle(.borderedProminent)
-                                .tint(SwiftBuddyTheme.accent)
+                                .tint(SwiftChatTheme.accent)
                                 .controlSize(.small)
                             Spacer()
                         }
@@ -115,7 +115,7 @@ struct HFSearchTab: View {
                     if service.isSearching {
                         HStack(spacing: 6) {
                             ProgressView().controlSize(.mini)
-                            Text("Loading...").font(.caption).foregroundStyle(SwiftBuddyTheme.textSecondary)
+                            Text("Loading...").font(.caption).foregroundStyle(SwiftChatTheme.textSecondary)
                         }
                         .padding(6)
                         .background(.ultraThinMaterial, in: Capsule())
@@ -149,23 +149,23 @@ private struct HFModelRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(model.repoName)
                         .font(.system(.subheadline, design: .default, weight: .semibold))
-                        .foregroundStyle(SwiftBuddyTheme.textPrimary)
+                        .foregroundStyle(SwiftChatTheme.textPrimary)
                         .lineLimit(1)
 
                     Text(model.id)
                         .font(.caption)
-                        .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                        .foregroundStyle(SwiftChatTheme.textSecondary)
                         .lineLimit(1)
 
                     HStack(spacing: 6) {
                         if model.isMlxCommunity {
-                            badge("mlx-community", color: SwiftBuddyTheme.accent)
+                            badge("mlx-community", color: SwiftChatTheme.accent)
                         }
                         if model.isMoE {
-                            badge("MoE", color: SwiftBuddyTheme.accentSecondary)
+                            badge("MoE", color: SwiftChatTheme.accentSecondary)
                         }
                         if let size = model.paramSizeHint {
-                            badge(size, color: SwiftBuddyTheme.warning)
+                            badge(size, color: SwiftChatTheme.warning)
                         }
                     }
                 }
@@ -176,16 +176,16 @@ private struct HFModelRow: View {
                     if !model.downloadsDisplay.isEmpty {
                         Text(model.downloadsDisplay)
                             .font(.caption2.monospacedDigit())
-                            .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                            .foregroundStyle(SwiftChatTheme.textSecondary)
                     }
                     if !model.likesDisplay.isEmpty {
                         Text(model.likesDisplay)
                             .font(.caption2.monospacedDigit())
-                            .foregroundStyle(SwiftBuddyTheme.error)
+                            .foregroundStyle(SwiftChatTheme.error)
                     }
                     Image(systemName: "arrow.down.circle")
                         .font(.title3)
-                        .foregroundStyle(SwiftBuddyTheme.accent)
+                        .foregroundStyle(SwiftChatTheme.accent)
                 }
             }
             .padding(.vertical, 4)

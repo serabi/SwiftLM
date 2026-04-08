@@ -33,12 +33,12 @@ struct MessageBubble: View {
                 if showTimestamp {
                     Text(message.timestamp, style: .time)
                         .font(.caption2)
-                        .foregroundStyle(SwiftBuddyTheme.textTertiary)
+                        .foregroundStyle(SwiftChatTheme.textTertiary)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                 }
             }
             .onTapGesture {
-                withAnimation(SwiftBuddyTheme.quickSpring) {
+                withAnimation(SwiftChatTheme.quickSpring) {
                     showTimestamp.toggle()
                 }
             }
@@ -56,10 +56,10 @@ struct MessageBubble: View {
             .foregroundStyle(.white)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .background(SwiftBuddyTheme.userBubbleGradient)
+            .background(SwiftChatTheme.userBubbleGradient)
             .clipShape(UserBubbleShape())
             .shadow(
-                color: SwiftBuddyTheme.accent.opacity(0.30),
+                color: SwiftChatTheme.accent.opacity(0.30),
                 radius: 6, x: 0, y: 3
             )
     }
@@ -70,21 +70,21 @@ struct MessageBubble: View {
         Text(message.content)
             .font(.system(.body, design: .default))
             .textSelection(.enabled)
-            .foregroundStyle(SwiftBuddyTheme.textPrimary)
+            .foregroundStyle(SwiftChatTheme.textPrimary)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .background(.ultraThinMaterial)
-            .background(SwiftBuddyTheme.surface.opacity(0.80))
+            .background(SwiftChatTheme.surface.opacity(0.80))
             .clipShape(AssistantBubbleShape())
             .overlay(
                 AssistantBubbleShape()
                     .stroke(Color.white.opacity(0.08), lineWidth: 1)
             )
             .shadow(
-                color: SwiftBuddyTheme.shadowBubble.color,
-                radius: SwiftBuddyTheme.shadowBubble.radius,
-                x: SwiftBuddyTheme.shadowBubble.x,
-                y: SwiftBuddyTheme.shadowBubble.y
+                color: SwiftChatTheme.shadowBubble.color,
+                radius: SwiftChatTheme.shadowBubble.radius,
+                x: SwiftChatTheme.shadowBubble.x,
+                y: SwiftChatTheme.shadowBubble.y
             )
     }
 }
@@ -128,24 +128,24 @@ struct StreamingBubble: View {
         HStack(alignment: .bottom, spacing: 0) {
             Text(text)
                 .font(.system(.body, design: .default))
-                .foregroundStyle(SwiftBuddyTheme.textPrimary)
+                .foregroundStyle(SwiftChatTheme.textPrimary)
                 .textSelection(.enabled)
             BlinkingCursor()
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(.ultraThinMaterial)
-        .background(SwiftBuddyTheme.surface.opacity(0.80))
+        .background(SwiftChatTheme.surface.opacity(0.80))
         .clipShape(AssistantBubbleShape())
         .overlay(
             AssistantBubbleShape()
                 .stroke(Color.white.opacity(0.08), lineWidth: 1)
         )
         .shadow(
-            color: SwiftBuddyTheme.shadowBubble.color,
-            radius: SwiftBuddyTheme.shadowBubble.radius,
-            x: SwiftBuddyTheme.shadowBubble.x,
-            y: SwiftBuddyTheme.shadowBubble.y
+            color: SwiftChatTheme.shadowBubble.color,
+            radius: SwiftChatTheme.shadowBubble.radius,
+            x: SwiftChatTheme.shadowBubble.x,
+            y: SwiftChatTheme.shadowBubble.y
         )
     }
 
@@ -158,7 +158,7 @@ struct StreamingBubble: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(.ultraThinMaterial)
-        .background(SwiftBuddyTheme.surface.opacity(0.80))
+        .background(SwiftChatTheme.surface.opacity(0.80))
         .clipShape(AssistantBubbleShape())
         .overlay(
             AssistantBubbleShape()

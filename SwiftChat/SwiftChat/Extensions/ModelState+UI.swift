@@ -9,11 +9,11 @@ extension ModelState {
 
     var statusColor: Color {
         switch self {
-        case .idle:                       return SwiftBuddyTheme.textTertiary
-        case .loading, .downloading:      return SwiftBuddyTheme.warning
-        case .ready:                      return SwiftBuddyTheme.success
-        case .generating:                 return SwiftBuddyTheme.accent
-        case .error:                      return SwiftBuddyTheme.error
+        case .idle:                       return SwiftChatTheme.textTertiary
+        case .loading, .downloading:      return SwiftChatTheme.warning
+        case .ready:                      return SwiftChatTheme.success
+        case .generating:                 return SwiftChatTheme.accent
+        case .error:                      return SwiftChatTheme.error
         }
     }
 

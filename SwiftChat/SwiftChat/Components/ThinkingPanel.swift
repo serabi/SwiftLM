@@ -9,19 +9,19 @@ struct ThinkingPanel: View {
         VStack(alignment: .leading, spacing: 0) {
             // Header toggle
             Button {
-                withAnimation(SwiftBuddyTheme.spring) { isExpanded.toggle() }
+                withAnimation(SwiftChatTheme.spring) { isExpanded.toggle() }
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "brain.filled.head.profile")
                         .font(.caption)
-                        .foregroundStyle(SwiftBuddyTheme.accentSecondary)
+                        .foregroundStyle(SwiftChatTheme.accentSecondary)
                     Text("Thinking...")
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(SwiftBuddyTheme.accentSecondary)
+                        .foregroundStyle(SwiftChatTheme.accentSecondary)
                     Spacer()
                     Image(systemName: "chevron.down")
                         .font(.caption2.weight(.bold))
-                        .foregroundStyle(SwiftBuddyTheme.textTertiary)
+                        .foregroundStyle(SwiftChatTheme.textTertiary)
                         .rotationEffect(.degrees(isExpanded ? 0 : -90))
                 }
                 .padding(.horizontal, 10)
@@ -34,18 +34,18 @@ struct ThinkingPanel: View {
                 ScrollView {
                     Text(text)
                         .font(.caption)
-                        .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                        .foregroundStyle(SwiftChatTheme.textSecondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(10)
                 }
                 .frame(maxHeight: 160)
             }
         }
-        .background(SwiftBuddyTheme.thinkingGradient)
-        .clipShape(RoundedRectangle(cornerRadius: SwiftBuddyTheme.radiusMedium))
+        .background(SwiftChatTheme.thinkingGradient)
+        .clipShape(RoundedRectangle(cornerRadius: SwiftChatTheme.radiusMedium))
         .overlay(
-            RoundedRectangle(cornerRadius: SwiftBuddyTheme.radiusMedium)
-                .strokeBorder(SwiftBuddyTheme.accentSecondary.opacity(0.20), lineWidth: 1)
+            RoundedRectangle(cornerRadius: SwiftChatTheme.radiusMedium)
+                .strokeBorder(SwiftChatTheme.accentSecondary.opacity(0.20), lineWidth: 1)
         )
     }
 }

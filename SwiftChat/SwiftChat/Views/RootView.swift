@@ -26,7 +26,7 @@ struct RootView: View {
                             .toolbar {
                                 ToolbarItem(placement: .cancellationAction) {
                                     Button("Done") { showModelPicker = false }
-                                        .foregroundStyle(SwiftBuddyTheme.accent)
+                                        .foregroundStyle(SwiftChatTheme.accent)
                                 }
                             }
                     }
@@ -92,7 +92,7 @@ struct RootView: View {
             }
             .tag(Tab.settings)
         }
-        .tint(SwiftBuddyTheme.accent)
+        .tint(SwiftChatTheme.accent)
         // Navigate to Models tab when a model load is requested from chat
         .onReceive(NotificationCenter.default.publisher(for: .showModelPicker)) { _ in
             selectedTab = .models
@@ -109,12 +109,12 @@ struct RootView: View {
                 // ── Branded sidebar header ────────────────────────────────
                 sidebarHeader
                 Divider()
-                    .background(SwiftBuddyTheme.divider)
+                    .background(SwiftChatTheme.divider)
 
                 // ── Engine status ─────────────────────────────────────────
                 engineStatusSection
                 Divider()
-                    .background(SwiftBuddyTheme.divider)
+                    .background(SwiftChatTheme.divider)
 
                 // ── Actions list ──────────────────────────────────────────
                 List {
@@ -123,48 +123,48 @@ struct RootView: View {
                             viewModel.newConversation()
                         } label: {
                             Label("New Chat", systemImage: "plus.bubble")
-                                .foregroundStyle(SwiftBuddyTheme.accent)
+                                .foregroundStyle(SwiftChatTheme.accent)
                         }
                         .buttonStyle(.plain)
                     }
                 }
                 .listStyle(.sidebar)
                 .scrollContentBackground(.hidden)
-                .background(SwiftBuddyTheme.background)
+                .background(SwiftChatTheme.background)
             }
             .frame(minWidth: 220)
-            .background(SwiftBuddyTheme.background)
+            .background(SwiftChatTheme.background)
         } detail: {
             ChatView(
                 viewModel: viewModel,
                 showSettings: $showSettings,
                 showModelPicker: $showModelPicker
             )
-            .background(SwiftBuddyTheme.background)
+            .background(SwiftChatTheme.background)
         }
         .navigationTitle("")
     }
 
-    // Branded header — bolt icon + SwiftBuddy wordmark + version chip
+    // Branded header — bolt icon + SwiftChat wordmark + version chip
     private var sidebarHeader: some View {
         HStack(spacing: 10) {
             ZStack {
                 Circle()
-                    .fill(SwiftBuddyTheme.heroGradient)
+                    .fill(SwiftChatTheme.heroGradient)
                     .frame(width: 32, height: 32)
                 Image(systemName: "bolt.fill")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(.white)
             }
-            .shadow(color: SwiftBuddyTheme.accent.opacity(0.40), radius: 6)
+            .shadow(color: SwiftChatTheme.accent.opacity(0.40), radius: 6)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text("SwiftBuddy")
+                Text("SwiftChat")
                     .font(.system(.subheadline, weight: .bold))
-                    .foregroundStyle(SwiftBuddyTheme.textPrimary)
+                    .foregroundStyle(SwiftChatTheme.textPrimary)
                 Text("Chat")
                     .font(.caption2)
-                    .foregroundStyle(SwiftBuddyTheme.textTertiary)
+                    .foregroundStyle(SwiftChatTheme.textTertiary)
             }
 
             Spacer()
@@ -173,8 +173,8 @@ struct RootView: View {
                 .font(.system(size: 9, weight: .bold))
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(SwiftBuddyTheme.accent.opacity(0.18), in: Capsule())
-                .foregroundStyle(SwiftBuddyTheme.accent)
+                .background(SwiftChatTheme.accent.opacity(0.18), in: Capsule())
+                .foregroundStyle(SwiftChatTheme.accent)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
@@ -185,7 +185,7 @@ struct RootView: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Engine")
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(SwiftBuddyTheme.textTertiary)
+                .foregroundStyle(SwiftChatTheme.textTertiary)
                 .textCase(.uppercase)
                 .padding(.horizontal, 14)
                 .padding(.top, 10)
@@ -202,33 +202,33 @@ struct RootView: View {
         case .idle:
             Button("Load Model") { showModelPicker = true }
                 .buttonStyle(.borderedProminent)
-                .tint(SwiftBuddyTheme.accent)
+                .tint(SwiftChatTheme.accent)
                 .controlSize(.small)
 
         case .loading:
             HStack(spacing: 6) {
-                ProgressView().controlSize(.mini).tint(SwiftBuddyTheme.accent)
+                ProgressView().controlSize(.mini).tint(SwiftChatTheme.accent)
                 Text("Loading…")
                     .font(.caption)
-                    .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                    .foregroundStyle(SwiftChatTheme.textSecondary)
             }
 
         case .downloading(let progress, let speed):
             VStack(alignment: .leading, spacing: 4) {
-                ProgressView(value: progress).tint(SwiftBuddyTheme.accent)
+                ProgressView(value: progress).tint(SwiftChatTheme.accent)
                 Text("\(Int(progress * 100))% · \(speed)")
                     .font(.caption2.monospacedDigit())
-                    .foregroundStyle(SwiftBuddyTheme.textTertiary)
+                    .foregroundStyle(SwiftChatTheme.textTertiary)
             }
 
         case .ready(let modelId):
             HStack(spacing: 6) {
                 Circle()
-                    .fill(SwiftBuddyTheme.success)
+                    .fill(SwiftChatTheme.success)
                     .frame(width: 7, height: 7)
                 Text(modelId.components(separatedBy: "/").last ?? modelId)
                     .font(.caption)
-                    .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                    .foregroundStyle(SwiftChatTheme.textSecondary)
                     .lineLimit(1)
             }
 
@@ -237,17 +237,17 @@ struct RootView: View {
                 GeneratingDots()
                 Text("Generating…")
                     .font(.caption)
-                    .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                    .foregroundStyle(SwiftChatTheme.textSecondary)
             }
 
         case .error(let msg):
             HStack(spacing: 6) {
                 Image(systemName: "exclamationmark.triangle")
                     .font(.caption)
-                    .foregroundStyle(SwiftBuddyTheme.error)
+                    .foregroundStyle(SwiftChatTheme.error)
                 Text(msg)
                     .font(.caption)
-                    .foregroundStyle(SwiftBuddyTheme.error)
+                    .foregroundStyle(SwiftChatTheme.error)
                     .lineLimit(2)
             }
         }

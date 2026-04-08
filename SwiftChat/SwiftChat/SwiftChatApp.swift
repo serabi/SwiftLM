@@ -1,8 +1,8 @@
-// SwiftBuddyApp.swift -- App entry point (iOS + macOS)
+// SwiftChatApp.swift -- App entry point (iOS + macOS)
 import SwiftUI
 
 @main
-struct SwiftBuddyApp: App {
+struct SwiftChatApp: App {
     @StateObject private var engine = InferenceEngine()
     @StateObject private var appearance = AppearanceStore()
 
@@ -12,8 +12,8 @@ struct SwiftBuddyApp: App {
                 .environmentObject(engine)
                 .environmentObject(appearance)
                 .preferredColorScheme(appearance.colorScheme)
-                .accentColor(SwiftBuddyTheme.accent)
-                .tint(SwiftBuddyTheme.accent)
+                .accentColor(SwiftChatTheme.accent)
+                .tint(SwiftChatTheme.accent)
         }
         #if os(macOS)
         .commands {

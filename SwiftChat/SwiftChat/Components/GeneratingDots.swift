@@ -9,7 +9,7 @@ struct GeneratingDots: View {
             ForEach(0..<3) { i in
                 Circle()
                     .frame(width: 5, height: 5)
-                    .foregroundStyle(SwiftBuddyTheme.accent)
+                    .foregroundStyle(SwiftChatTheme.accent)
                     .scaleEffect(phase == i ? 1.5 : 0.8)
                     .opacity(phase == i ? 1.0 : 0.45)
                     .animation(

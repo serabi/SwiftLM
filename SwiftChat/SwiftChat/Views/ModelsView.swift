@@ -15,7 +15,7 @@ struct ModelsView: View {
 
     var body: some View {
         ZStack {
-            SwiftBuddyTheme.background.ignoresSafeArea()
+            SwiftChatTheme.background.ignoresSafeArea()
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
@@ -23,14 +23,14 @@ struct ModelsView: View {
                     if dm.isOffline {
                         HStack(spacing: 8) {
                             Image(systemName: "wifi.slash")
-                                .foregroundStyle(SwiftBuddyTheme.warning)
+                                .foregroundStyle(SwiftChatTheme.warning)
                             Text("Offline -- only downloaded models available")
                                 .font(.caption.weight(.medium))
-                                .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                                .foregroundStyle(SwiftChatTheme.textSecondary)
                             Spacer()
                         }
                         .padding(12)
-                        .glassCard(cornerRadius: SwiftBuddyTheme.radiusMedium)
+                        .glassCard(cornerRadius: SwiftChatTheme.radiusMedium)
                         .padding(.horizontal)
                         .padding(.top, 12)
                     }
@@ -74,15 +74,15 @@ struct ModelsView: View {
                                 .padding(.horizontal)
                                 if downloaded.id != dm.downloadedModels.last?.id {
                                     Divider()
-                                        .background(SwiftBuddyTheme.divider)
+                                        .background(SwiftChatTheme.divider)
                                         .padding(.leading, 72)
                                 }
                             }
                         }
-                        .background(SwiftBuddyTheme.surface.opacity(0.60))
-                        .clipShape(RoundedRectangle(cornerRadius: SwiftBuddyTheme.radiusMedium))
+                        .background(SwiftChatTheme.surface.opacity(0.60))
+                        .clipShape(RoundedRectangle(cornerRadius: SwiftChatTheme.radiusMedium))
                         .overlay(
-                            RoundedRectangle(cornerRadius: SwiftBuddyTheme.radiusMedium)
+                            RoundedRectangle(cornerRadius: SwiftChatTheme.radiusMedium)
                                 .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)
                         )
                         .padding(.horizontal)
@@ -128,15 +128,15 @@ struct ModelsView: View {
                                 .padding(.horizontal)
                                 if model.id != others.last?.id {
                                     Divider()
-                                        .background(SwiftBuddyTheme.divider)
+                                        .background(SwiftChatTheme.divider)
                                         .padding(.leading, 56)
                                 }
                             }
                         }
-                        .background(SwiftBuddyTheme.surface.opacity(0.60))
-                        .clipShape(RoundedRectangle(cornerRadius: SwiftBuddyTheme.radiusMedium))
+                        .background(SwiftChatTheme.surface.opacity(0.60))
+                        .clipShape(RoundedRectangle(cornerRadius: SwiftChatTheme.radiusMedium))
                         .overlay(
-                            RoundedRectangle(cornerRadius: SwiftBuddyTheme.radiusMedium)
+                            RoundedRectangle(cornerRadius: SwiftChatTheme.radiusMedium)
                                 .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)
                         )
                         .padding(.horizontal)
@@ -147,19 +147,19 @@ struct ModelsView: View {
                     Button { showHFSearch = true } label: {
                         HStack {
                             Image(systemName: "magnifyingglass")
-                                .foregroundStyle(SwiftBuddyTheme.accent)
+                                .foregroundStyle(SwiftChatTheme.accent)
                             Text("Search HuggingFace MLX models")
-                                .foregroundStyle(SwiftBuddyTheme.textPrimary)
+                                .foregroundStyle(SwiftChatTheme.textPrimary)
                             Spacer()
                             Image(systemName: "chevron.right")
                                 .font(.caption)
-                                .foregroundStyle(SwiftBuddyTheme.textTertiary)
+                                .foregroundStyle(SwiftChatTheme.textTertiary)
                         }
                         .padding(14)
-                        .background(SwiftBuddyTheme.surface.opacity(0.60))
-                        .clipShape(RoundedRectangle(cornerRadius: SwiftBuddyTheme.radiusMedium))
+                        .background(SwiftChatTheme.surface.opacity(0.60))
+                        .clipShape(RoundedRectangle(cornerRadius: SwiftChatTheme.radiusMedium))
                         .overlay(
-                            RoundedRectangle(cornerRadius: SwiftBuddyTheme.radiusMedium)
+                            RoundedRectangle(cornerRadius: SwiftChatTheme.radiusMedium)
                                 .strokeBorder(Color.white.opacity(0.07), lineWidth: 1)
                         )
                     }
@@ -174,14 +174,14 @@ struct ModelsView: View {
         .navigationTitle("Models")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.large)
-        .toolbarBackground(SwiftBuddyTheme.background.opacity(0.90), for: .navigationBar)
+        .toolbarBackground(SwiftChatTheme.background.opacity(0.90), for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         #endif
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button { showManagement = true } label: {
                     Image(systemName: "externaldrive.badge.minus")
-                        .foregroundStyle(SwiftBuddyTheme.accent)
+                        .foregroundStyle(SwiftChatTheme.accent)
                 }
             }
         }
@@ -219,10 +219,10 @@ struct ModelsView: View {
         HStack(spacing: 8) {
             Text(title)
                 .font(.footnote.weight(.semibold))
-                .foregroundStyle(SwiftBuddyTheme.textTertiary)
+                .foregroundStyle(SwiftChatTheme.textTertiary)
                 .textCase(.uppercase)
             Rectangle()
-                .fill(SwiftBuddyTheme.divider)
+                .fill(SwiftChatTheme.divider)
                 .frame(height: 1)
         }
         .padding(.horizontal)
@@ -278,50 +278,50 @@ private struct ActiveModelCardView: View {
 
     private var loadingCard: some View {
         HStack(spacing: 12) {
-            ProgressView().controlSize(.regular).tint(SwiftBuddyTheme.accent)
+            ProgressView().controlSize(.regular).tint(SwiftChatTheme.accent)
             VStack(alignment: .leading, spacing: 2) {
                 Text("Loading model…")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(SwiftBuddyTheme.textPrimary)
+                    .foregroundStyle(SwiftChatTheme.textPrimary)
                 Text("Initializing Metal GPU")
                     .font(.caption)
-                    .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                    .foregroundStyle(SwiftChatTheme.textSecondary)
             }
             Spacer()
         }
         .padding()
-        .glassCard(cornerRadius: SwiftBuddyTheme.radiusLarge)
+        .glassCard(cornerRadius: SwiftChatTheme.radiusLarge)
     }
 
     private func downloadingCard(progress: Double, speed: String) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Image(systemName: "arrow.down.circle.fill")
-                    .foregroundStyle(SwiftBuddyTheme.accent)
+                    .foregroundStyle(SwiftChatTheme.accent)
                 Text("Downloading model…")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(SwiftBuddyTheme.textPrimary)
+                    .foregroundStyle(SwiftChatTheme.textPrimary)
                 Spacer()
                 Text("\(Int(progress * 100))%")
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                    .foregroundStyle(SwiftChatTheme.textSecondary)
             }
-            ProgressView(value: progress).tint(SwiftBuddyTheme.accent)
+            ProgressView(value: progress).tint(SwiftChatTheme.accent)
             Text(speed)
                 .font(.caption.monospacedDigit())
-                .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                .foregroundStyle(SwiftChatTheme.textSecondary)
         }
         .padding()
-        .glassCard(cornerRadius: SwiftBuddyTheme.radiusLarge)
+        .glassCard(cornerRadius: SwiftChatTheme.radiusLarge)
     }
 
     private var idleCard: some View {
         HStack(spacing: 12) {
             ZStack {
                 Circle()
-                    .fill(SwiftBuddyTheme.heroGradient)
+                    .fill(SwiftChatTheme.heroGradient)
                     .frame(width: 46, height: 46)
-                    .shadow(color: SwiftBuddyTheme.accent.opacity(0.30), radius: 8)
+                    .shadow(color: SwiftChatTheme.accent.opacity(0.30), radius: 8)
                 Image(systemName: "bolt.fill")
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(.white)
@@ -329,15 +329,15 @@ private struct ActiveModelCardView: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text("No model loaded")
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(SwiftBuddyTheme.textPrimary)
+                    .foregroundStyle(SwiftChatTheme.textPrimary)
                 Text("Select a model below to start chatting")
                     .font(.caption)
-                    .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                    .foregroundStyle(SwiftChatTheme.textSecondary)
             }
             Spacer()
         }
         .padding()
-        .glassCard(cornerRadius: SwiftBuddyTheme.radiusLarge)
+        .glassCard(cornerRadius: SwiftChatTheme.radiusLarge)
     }
 }
 
@@ -349,21 +349,21 @@ private struct ActiveModelHeroCard: View {
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             // Dark mesh gradient background
-            RoundedRectangle(cornerRadius: SwiftBuddyTheme.radiusLarge)
-                .fill(SwiftBuddyTheme.heroGradient)
+            RoundedRectangle(cornerRadius: SwiftChatTheme.radiusLarge)
+                .fill(SwiftChatTheme.heroGradient)
 
             // Glow orb
             Circle()
-                .fill(SwiftBuddyTheme.accent.opacity(0.18))
+                .fill(SwiftChatTheme.accent.opacity(0.18))
                 .frame(width: 120, height: 120)
                 .blur(radius: 30)
                 .offset(x: 60, y: -20)
 
             // Border
-            RoundedRectangle(cornerRadius: SwiftBuddyTheme.radiusLarge)
+            RoundedRectangle(cornerRadius: SwiftChatTheme.radiusLarge)
                 .strokeBorder(
                     LinearGradient(
-                        colors: [SwiftBuddyTheme.accent.opacity(0.40), Color.white.opacity(0.05)],
+                        colors: [SwiftChatTheme.accent.opacity(0.40), Color.white.opacity(0.05)],
                         startPoint: .topLeading, endPoint: .bottomTrailing
                     ),
                     lineWidth: 1
@@ -399,10 +399,10 @@ private struct ActiveModelHeroCard: View {
         .frame(maxWidth: .infinity)
         .frame(height: 140)
         .shadow(
-            color: SwiftBuddyTheme.shadowCard.color,
-            radius: SwiftBuddyTheme.shadowCard.radius,
-            x: SwiftBuddyTheme.shadowCard.x,
-            y: SwiftBuddyTheme.shadowCard.y
+            color: SwiftChatTheme.shadowCard.color,
+            radius: SwiftChatTheme.shadowCard.radius,
+            x: SwiftChatTheme.shadowCard.x,
+            y: SwiftChatTheme.shadowCard.y
         )
     }
 
@@ -419,7 +419,7 @@ private struct ActiveModelHeroCard: View {
     private var stateBadge: some View {
         switch state {
         case .ready:
-            badgeView("Ready", icon: "checkmark.circle.fill", color: SwiftBuddyTheme.success)
+            badgeView("Ready", icon: "checkmark.circle.fill", color: SwiftChatTheme.success)
         case .generating:
             HStack(spacing: 4) {
                 GeneratingDots()
@@ -456,10 +456,10 @@ private struct DownloadProgressCard: View {
             HStack(spacing: 10) {
                 ZStack {
                     Circle()
-                        .stroke(SwiftBuddyTheme.accent.opacity(0.15), lineWidth: 3)
+                        .stroke(SwiftChatTheme.accent.opacity(0.15), lineWidth: 3)
                     Circle()
                         .trim(from: 0, to: progress.fractionCompleted)
-                        .stroke(SwiftBuddyTheme.avatarGradient,
+                        .stroke(SwiftChatTheme.avatarGradient,
                                 style: StrokeStyle(lineWidth: 3, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                         .animation(.linear(duration: 0.3), value: progress.fractionCompleted)
@@ -469,28 +469,28 @@ private struct DownloadProgressCard: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(modelId.components(separatedBy: "/").last ?? modelId)
                         .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(SwiftBuddyTheme.textPrimary)
+                        .foregroundStyle(SwiftChatTheme.textPrimary)
                         .lineLimit(1)
                     HStack(spacing: 6) {
                         Text("\(Int(progress.fractionCompleted * 100))%")
                             .font(.caption.monospacedDigit())
-                            .foregroundStyle(SwiftBuddyTheme.accent)
+                            .foregroundStyle(SwiftChatTheme.accent)
                         if let speed = progress.speedMBps {
                             Text("·")
-                                .foregroundStyle(SwiftBuddyTheme.textTertiary).font(.caption)
+                                .foregroundStyle(SwiftChatTheme.textTertiary).font(.caption)
                             Text(String(format: "%.1f MB/s", speed))
                                 .font(.caption.monospacedDigit())
-                                .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                                .foregroundStyle(SwiftChatTheme.textSecondary)
                         }
                     }
                 }
                 Spacer()
             }
             ProgressView(value: progress.fractionCompleted)
-                .tint(SwiftBuddyTheme.accent)
+                .tint(SwiftChatTheme.accent)
         }
         .padding(14)
-        .glassCard(cornerRadius: SwiftBuddyTheme.radiusMedium)
+        .glassCard(cornerRadius: SwiftChatTheme.radiusMedium)
     }
 }
 
@@ -510,32 +510,32 @@ private struct DownloadedModelRow: View {
             HStack(spacing: 12) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 10)
-                        .fill(isActive ? AnyShapeStyle(SwiftBuddyTheme.userBubbleGradient) : AnyShapeStyle(SwiftBuddyTheme.surface))
+                        .fill(isActive ? AnyShapeStyle(SwiftChatTheme.userBubbleGradient) : AnyShapeStyle(SwiftChatTheme.surface))
                         .frame(width: 44, height: 44)
                     Image(systemName: entry?.isMoE == true ? "square.grid.3x3.fill" : "brain")
                         .font(.body)
-                        .foregroundStyle(isActive ? .white : SwiftBuddyTheme.textSecondary)
+                        .foregroundStyle(isActive ? .white : SwiftChatTheme.textSecondary)
                 }
-                .shadow(color: isActive ? SwiftBuddyTheme.accent.opacity(0.30) : .clear, radius: 6)
+                .shadow(color: isActive ? SwiftChatTheme.accent.opacity(0.30) : .clear, radius: 6)
 
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 6) {
                         Text(entry?.displayName ?? downloaded.id.components(separatedBy: "/").last ?? downloaded.id)
                             .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(SwiftBuddyTheme.textPrimary)
+                            .foregroundStyle(SwiftChatTheme.textPrimary)
                         if isActive {
-                            ThemedBadge(text: "IN USE", color: SwiftBuddyTheme.accent)
+                            ThemedBadge(text: "IN USE", color: SwiftChatTheme.accent)
                         }
                     }
                     HStack(spacing: 6) {
                         Text(downloaded.displaySize)
                             .font(.caption)
-                            .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                            .foregroundStyle(SwiftChatTheme.textSecondary)
                         if let entry {
-                            Text("·").foregroundStyle(SwiftBuddyTheme.textTertiary).font(.caption)
+                            Text("·").foregroundStyle(SwiftChatTheme.textTertiary).font(.caption)
                             Text(entry.quantization)
                                 .font(.caption)
-                                .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                                .foregroundStyle(SwiftChatTheme.textSecondary)
                         }
                     }
                 }
@@ -543,7 +543,7 @@ private struct DownloadedModelRow: View {
                 Spacer()
 
                 Image(systemName: isActive ? "checkmark.circle.fill" : "arrow.right.circle")
-                    .foregroundStyle(isActive ? SwiftBuddyTheme.accent : SwiftBuddyTheme.textTertiary)
+                    .foregroundStyle(isActive ? SwiftChatTheme.accent : SwiftChatTheme.textTertiary)
                     .font(.title3)
             }
             .padding(.vertical, 12)
@@ -569,7 +569,7 @@ private struct CatalogCard: View {
 
     var body: some View {
         Button {
-            withAnimation(SwiftBuddyTheme.quickSpring) { tapped = true }
+            withAnimation(SwiftChatTheme.quickSpring) { tapped = true }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
                 tapped = false
                 onTap()
@@ -586,13 +586,13 @@ private struct CatalogCard: View {
                 Spacer()
                 Text(model.displayName)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(SwiftBuddyTheme.textPrimary)
+                    .foregroundStyle(SwiftChatTheme.textPrimary)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
 
                 Text(String(format: "~%.0f GB RAM", model.ramRequiredGB))
                     .font(.caption)
-                    .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                    .foregroundStyle(SwiftChatTheme.textSecondary)
 
                 HStack(spacing: 4) {
                     Image(systemName: "arrow.down.circle")
@@ -605,10 +605,10 @@ private struct CatalogCard: View {
             }
             .padding(14)
             .frame(width: 150, height: 165)
-            .background(SwiftBuddyTheme.surface.opacity(0.70))
-            .clipShape(RoundedRectangle(cornerRadius: SwiftBuddyTheme.radiusMedium))
+            .background(SwiftChatTheme.surface.opacity(0.70))
+            .clipShape(RoundedRectangle(cornerRadius: SwiftChatTheme.radiusMedium))
             .overlay(
-                RoundedRectangle(cornerRadius: SwiftBuddyTheme.radiusMedium)
+                RoundedRectangle(cornerRadius: SwiftChatTheme.radiusMedium)
                     .strokeBorder(fitColor.opacity(tapped ? 0.60 : 0.18), lineWidth: 1)
             )
             .scaleEffect(tapped ? 0.96 : 1.0)
@@ -619,10 +619,10 @@ private struct CatalogCard: View {
 
     private var fitColor: Color {
         switch fitStatus {
-        case .fits:          return SwiftBuddyTheme.accent
-        case .tight:         return SwiftBuddyTheme.warning
+        case .fits:          return SwiftChatTheme.accent
+        case .tight:         return SwiftChatTheme.warning
         case .requiresFlash: return Color.indigo
-        case .tooLarge:      return SwiftBuddyTheme.error
+        case .tooLarge:      return SwiftChatTheme.error
         }
     }
 
@@ -630,13 +630,13 @@ private struct CatalogCard: View {
     private var fitBadgeIcon: some View {
         switch fitStatus {
         case .fits:
-            Image(systemName: "checkmark.circle.fill").foregroundStyle(SwiftBuddyTheme.success).font(.caption)
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(SwiftChatTheme.success).font(.caption)
         case .tight:
-            Image(systemName: "exclamationmark.circle").foregroundStyle(SwiftBuddyTheme.warning).font(.caption)
+            Image(systemName: "exclamationmark.circle").foregroundStyle(SwiftChatTheme.warning).font(.caption)
         case .requiresFlash:
             Image(systemName: "externaldrive.badge.wifi").foregroundStyle(Color.indigo).font(.caption)
         case .tooLarge:
-            Image(systemName: "xmark.circle").foregroundStyle(SwiftBuddyTheme.error).font(.caption)
+            Image(systemName: "xmark.circle").foregroundStyle(SwiftChatTheme.error).font(.caption)
         }
     }
 }
@@ -664,14 +664,14 @@ private struct CatalogListRow: View {
                     HStack(spacing: 6) {
                         Text(model.displayName)
                             .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(SwiftBuddyTheme.textPrimary)
+                            .foregroundStyle(SwiftChatTheme.textPrimary)
                         if let badge = model.badge {
-                            ThemedBadge(text: badge, color: SwiftBuddyTheme.accent)
+                            ThemedBadge(text: badge, color: SwiftChatTheme.accent)
                         }
                     }
                     Text("\(model.parameterSize) · \(model.quantization) · ~\(String(format: "%.0f GB", model.ramRequiredGB)) RAM")
                         .font(.caption)
-                        .foregroundStyle(SwiftBuddyTheme.textSecondary)
+                        .foregroundStyle(SwiftChatTheme.textSecondary)
                 }
 
                 Spacer()
@@ -686,10 +686,10 @@ private struct CatalogListRow: View {
 
     private var fitColor: Color {
         switch fitStatus {
-        case .fits:          return SwiftBuddyTheme.accent
-        case .tight:         return SwiftBuddyTheme.warning
+        case .fits:          return SwiftChatTheme.accent
+        case .tight:         return SwiftChatTheme.warning
         case .requiresFlash: return Color.indigo
-        case .tooLarge:      return SwiftBuddyTheme.error
+        case .tooLarge:      return SwiftChatTheme.error
         }
     }
 
@@ -698,16 +698,16 @@ private struct CatalogListRow: View {
         switch fitStatus {
         case .fits:
             Image(systemName: "arrow.down.circle")
-                .foregroundStyle(SwiftBuddyTheme.accent).font(.title3)
+                .foregroundStyle(SwiftChatTheme.accent).font(.title3)
         case .tight:
             Image(systemName: "arrow.down.circle")
-                .foregroundStyle(SwiftBuddyTheme.warning).font(.title3)
+                .foregroundStyle(SwiftChatTheme.warning).font(.title3)
         case .requiresFlash:
             Image(systemName: "externaldrive.badge.wifi")
                 .foregroundStyle(Color.indigo).font(.title3)
         case .tooLarge:
             Image(systemName: "xmark.circle")
-                .foregroundStyle(SwiftBuddyTheme.error).font(.title3)
+                .foregroundStyle(SwiftChatTheme.error).font(.title3)
         }
     }
 }
@@ -722,7 +722,7 @@ private struct HFSearchSheet: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                SwiftBuddyTheme.background.ignoresSafeArea()
+                SwiftChatTheme.background.ignoresSafeArea()
                 HFSearchTab(onSelect: { id in
                     onSelect(id)
                     dismiss()
@@ -735,7 +735,7 @@ private struct HFSearchSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
-                        .foregroundStyle(SwiftBuddyTheme.accent)
+                        .foregroundStyle(SwiftChatTheme.accent)
                 }
             }
         }

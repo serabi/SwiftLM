@@ -7,7 +7,7 @@ struct BlinkingCursor: View {
     var body: some View {
         RoundedRectangle(cornerRadius: 1.5)
             .frame(width: 2.5, height: 17)
-            .foregroundStyle(SwiftBuddyTheme.accent)
+            .foregroundStyle(SwiftChatTheme.accent)
             .opacity(visible ? 1 : 0)
             .animation(
                 .easeInOut(duration: 0.52).repeatForever(autoreverses: true),
