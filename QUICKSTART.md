@@ -21,6 +21,23 @@ curl http://localhost:5413/v1/chat/completions \
   -d '{"messages":[{"role":"user","content":"Hello"}],"max_tokens":100}'
 ```
 
+## Suggested Models
+
+Pick a model based on your Mac's RAM:
+
+| RAM | Model | Size | Speed | Notes |
+|-----|-------|------|-------|-------|
+| 8GB | `mlx-community/Qwen3.5-4B-MLX-4bit` | ~2.5GB | Very fast | Good for quick testing |
+| 16GB | `mlx-community/Qwen3.5-9B-MLX-4bit` | ~5GB | Fast | Solid general-purpose |
+| 24GB | `mlx-community/Qwen3.5-35B-A3B-4bit` | ~19GB | Good | MoE, only 3B active per token |
+| 36GB | `mlx-community/Qwen3.5-35B-A3B-4bit` | ~19GB | Good | Comfortable fit with room for KV cache |
+| 64GB | `mlx-community/Qwen3.5-122B-A17B-4bit` | ~67GB | Slow | Needs `--stream-experts`, SSD-bottlenecked |
+| 64GB+ | `mlx-community/Qwen3.5-397B-A17B-4bit` | ~215GB | Very slow | Needs `--stream-experts`, ~8s/token |
+
+MoE models (the ones with "A3B" or "A17B" in the name) only activate a fraction of parameters per token, so they punch above their weight for speed. Use `--stream-experts` when the model exceeds your RAM.
+
+All models are from the [mlx-community](https://huggingface.co/mlx-community) collection on HuggingFace. Gated models require a [HuggingFace token](https://huggingface.co/settings/tokens) with read access.
+
 ## Build
 
 Always use `./build.sh`, not `swift build` directly. The build script compiles Metal GPU kernels (`mlx.metallib`) that MLX requires at runtime. Plain `swift build` will compile but crash with "Failed to load the default metallib".
