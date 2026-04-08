@@ -17,6 +17,11 @@ final class ProgressTracker {
     func getDownloadedBytes() -> Int64 {
         let home = FileManager.default.homeDirectoryForCurrentUser
         let folderName = "models--" + modelId.replacingOccurrences(of: "/", with: "--")
+        // Check both possible download locations:
+        // 1. SwiftLM uses ~/Library/Application Support/MLX/HuggingFace/ (via HubApi downloadBase)
+        // 2. Standard HuggingFace CLI uses ~/.cache/huggingface/hub/
+        let appSupportDir = URL.applicationSupportDirectory
+            .appendingPathComponent("MLX/HuggingFace/\(folderName)")
         let modelHubDir = home.appendingPathComponent(".cache/huggingface/hub/\(folderName)")
         let downloadDir = home.appendingPathComponent(".cache/huggingface/download")
 
@@ -34,7 +39,7 @@ final class ProgressTracker {
             return total
         }
 
-        return sumDir(modelHubDir) + sumDir(downloadDir)
+        return sumDir(appSupportDir) + sumDir(modelHubDir) + sumDir(downloadDir)
     }
 
     func printProgress(_ progress: Progress) {
