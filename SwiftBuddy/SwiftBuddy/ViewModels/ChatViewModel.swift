@@ -34,6 +34,18 @@ final class ChatViewModel: ObservableObject {
         var dynamicSystemPrompt = systemPrompt
         if let wing = currentWing, !wing.isEmpty {
             do {
+                // 1. WAKE-UP HOOK: Offline Persona Context Injection
+                var wakeUpText = ""
+                let coreFacts = try MemoryPalaceService.shared.fetchRoomContents(wingName: wing, roomName: "CORE IDENTITY")
+                let bgFacts = try MemoryPalaceService.shared.fetchRoomContents(wingName: wing, roomName: "BACKGROUND STORY")
+                
+                let combinedIdentity = (coreFacts + bgFacts).joined(separator: "\n")
+                if !combinedIdentity.isEmpty {
+                    wakeUpText = "SYSTEM PERSONA DIRECTIVE:\n\(combinedIdentity)\n\n"
+                    dynamicSystemPrompt = wakeUpText + dynamicSystemPrompt
+                }
+                
+                // 2. ACTIVE RAG HOOK
                 let facts = try MemoryPalaceService.shared.searchMemories(query: userText, wingName: wing)
                 if !facts.isEmpty {
                     let factList = facts.map { "- [\($0.hallType)] \($0.text)" }.joined(separator: "\n")

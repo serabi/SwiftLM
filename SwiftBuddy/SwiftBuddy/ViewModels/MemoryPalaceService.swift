@@ -181,6 +181,16 @@ final class MemoryPalaceService {
         return wing.rooms.map { $0.name }
     }
     
+    // Natively pulls raw facts avoiding embedding distance logic 
+    func fetchRoomContents(wingName: String, roomName: String) throws -> [String] {
+        guard let context = modelContext else { throw URLError(.badServerResponse) }
+        let fetchRoom = FetchDescriptor<PalaceRoom>(predicate: #Predicate { 
+            $0.name == roomName && $0.wing?.name == wingName 
+        })
+        guard let room = try context.fetch(fetchRoom).first else { return [] }
+        return room.memories.map { $0.text }
+    }
+    
     // MARK: - Wing Management
     
     func listWings() throws -> [String] {

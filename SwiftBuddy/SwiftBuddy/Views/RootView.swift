@@ -15,8 +15,9 @@ struct RootView: View {
     // macOS sheets
     @State private var showModelPicker = false
     @State private var showSettings = false
+    @State private var showMap = false
 
-    enum Tab { case chat, models, settings }
+    enum Tab { case chat, models, palace, settings }
 
     var body: some View {
         Group {
@@ -32,6 +33,10 @@ struct RootView: View {
                 .sheet(isPresented: $showSettings) {
                     SettingsView(viewModel: viewModel)
                         .environmentObject(appearance)
+                }
+                .sheet(isPresented: $showMap) {
+                    PalaceVisualizerView()
+                        .frame(width: 800, height: 600)
                 }
                 .onReceive(NotificationCenter.default.publisher(for: .showModelPicker)) { _ in
                     showModelPicker = true
@@ -78,6 +83,15 @@ struct RootView: View {
                    ? 0
                    : engine.downloadManager.activeDownloads.count)
 
+            // ── Palace Tab ──────────────────────────────────────────────
+            NavigationStack {
+                PalaceVisualizerView()
+            }
+            .tabItem {
+                Label("Palace", systemImage: selectedTab == .palace ? "brain.head.profile" : "brain")
+            }
+            .tag(Tab.palace)
+
             // ── Settings Tab ──────────────────────────────────────────────
             NavigationStack {
                 SettingsView(viewModel: viewModel, isTab: true)
@@ -120,6 +134,14 @@ struct RootView: View {
                         } label: {
                             Label("New Chat", systemImage: "plus.bubble")
                                 .foregroundStyle(SwiftBuddyTheme.accent)
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Button {
+                            showMap = true
+                        } label: {
+                            Label("Memory Map", systemImage: "map.fill")
+                                .foregroundStyle(.orange)
                         }
                         .buttonStyle(.plain)
                     }
