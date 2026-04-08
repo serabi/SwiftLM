@@ -96,6 +96,37 @@ curl http://localhost:5413/stats | python3 -m json.tool
 
 ### Aider
 
+1. Start the SwiftLM server:
+
+```bash
+.build/release/SwiftLM --model mlx-community/Qwen3.5-35B-A3B-4bit --port 5413
+```
+
+2. Create two config files in your project directory:
+
+**`.aider.model.settings.yml`** -- tells Aider how to use the model:
+
+```yaml
+- name: openai/mlx-community/Qwen3.5-35B-A3B-4bit
+  edit_format: whole
+  extra_params:
+    max_tokens: 4096
+```
+
+**`.aider.model.metadata.json`** -- tells Aider the model's token limits (prevents "of 0" warnings):
+
+```json
+{
+  "openai/mlx-community/Qwen3.5-35B-A3B-4bit": {
+    "max_tokens": 4096,
+    "max_input_tokens": 32000,
+    "max_output_tokens": 4096
+  }
+}
+```
+
+3. Run Aider:
+
 ```bash
 aider \
   --openai-api-base http://localhost:5413/v1 \
@@ -103,17 +134,7 @@ aider \
   --model openai/mlx-community/Qwen3.5-35B-A3B-4bit
 ```
 
-The `openai/` prefix tells Aider's litellm backend to use the OpenAI protocol. The API key can be any string (unless you set `--api-key` on the server).
-
-For token limit configuration, create `.aider.model.settings.yml` in your project:
-
-```yaml
-- name: openai/mlx-community/Qwen3.5-35B-A3B-4bit
-  extra_params:
-    max_tokens: 4096
-  max_input_tokens: 32000
-  max_output_tokens: 4096
-```
+The `openai/` prefix tells Aider's litellm backend to use the OpenAI-compatible protocol. The API key can be any string (unless you set `--api-key` on the server).
 
 ### Other Tools
 
