@@ -4,6 +4,7 @@
 // Usage: SwiftLM --model mlx-community/Qwen2.5-3B-Instruct-4bit --port 5413
 
 import ArgumentParser
+import Logging
 
 @main
 struct MLXServer: AsyncParsableCommand {
@@ -73,6 +74,7 @@ struct MLXServer: AsyncParsableCommand {
     var prefillSize: Int = 512
 
     mutating func run() async throws {
+        Log.bootstrap()
         try await ServerBootstrap.start(options: self)
     }
 }

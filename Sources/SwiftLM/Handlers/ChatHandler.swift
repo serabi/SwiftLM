@@ -8,6 +8,7 @@ import Foundation
 import HTTPTypes
 import Hummingbird
 import Hub
+import Logging
 import MLX
 import MLXLLM
 import MLXLMCommon
@@ -146,7 +147,7 @@ func handleChatCompletion(
     let promptTokens = lmInput.text.tokens.asArray(Int.self)
 
     // llama-server style: announce prefill start
-    print("srv  slot_launch: id 0 | prompt=\(promptTokenCount)t | thinking=\(enableThinking) | prefilling...")
+    Log.debug("srv  slot_launch: id 0 | prompt=\(promptTokenCount)t | thinking=\(enableThinking) | prefilling...")
     fflush(stdout)
     let prefillStart = Date()
 
@@ -191,7 +192,7 @@ func handleChatCompletion(
         }
         let onPrefillDone: (() async -> Void)? = {
             if turboHasCompressed {
-                print("[SwiftLM] Skipping prompt cache save -- TurboQuant has compressed \(cache.compactMap { ($0 as? KVCacheSimple)?.compressedOffset }.max() ?? 0) tokens. Saving would decode ~37 GB back to fp16.")
+                Log.info("Skipping prompt cache save -- TurboQuant has compressed \(cache.compactMap { ($0 as? KVCacheSimple)?.compressedOffset }.max() ?? 0) tokens. Saving would decode ~37 GB back to fp16.")
             } else {
                 await promptCache.save(tokens: promptTokens, cache: cache)
             }
@@ -287,8 +288,8 @@ func handleChatStreaming(
                     let prefillDur = Date().timeIntervalSince(prefillStart)
                     let prefillTokPerSec = prefillDur > 0 ? Double(promptTokenCount) / prefillDur : 0
                     let memSnap = MemoryUtils.snapshot()
-                    print("srv  slot update: id 0 | prefill done | n_tokens=\(promptTokenCount), t=\(String(format: "%.2f", prefillDur))s, \(String(format: "%.1f", prefillTokPerSec))t/s | OS_RAM=\(String(format: "%.1f", memSnap.os))GB | MEM_DEMAND=\(String(format: "%.1f", memSnap.demand))GB | GPU_MEM=\(String(format: "%.1f", memSnap.gpu))GB")
-                    print("srv  generate: id 0 | ", terminator: "")
+                    Log.debug("srv  slot update: id 0 | prefill done | n_tokens=\(promptTokenCount), t=\(String(format: "%.2f", prefillDur))s, \(String(format: "%.1f", prefillTokPerSec))t/s | OS_RAM=\(String(format: "%.1f", memSnap.os))GB | MEM_DEMAND=\(String(format: "%.1f", memSnap.demand))GB | GPU_MEM=\(String(format: "%.1f", memSnap.gpu))GB")
+                    Log.debug("srv  generate: id 0")
                     if let onPrefillDone { await onPrefillDone() }
                     firstToken = false
                 }
@@ -386,7 +387,7 @@ func handleChatStreaming(
                     cont.finish()
                     print("")
                     let postMemSnap = MemoryUtils.snapshot()
-                    print("srv  slot done: id 0 | gen_tokens=\(completionTokenCount) | OS_RAM=\(String(format: "%.1f", postMemSnap.os))GB | MEM_DEMAND=\(String(format: "%.1f", postMemSnap.demand))GB | GPU_MEM=\(String(format: "%.1f", postMemSnap.gpu))GB")
+                    Log.debug("srv  slot done: id 0 | gen_tokens=\(completionTokenCount) | OS_RAM=\(String(format: "%.1f", postMemSnap.os))GB | MEM_DEMAND=\(String(format: "%.1f", postMemSnap.demand))GB | GPU_MEM=\(String(format: "%.1f", postMemSnap.gpu))GB")
                     let dur = Date().timeIntervalSince(genStart)
                     let tokPerSec = dur > 0 ? Double(completionTokenCount) / dur : 0
                     let logContent: Any = hasToolCalls ? NSNull() : fullText
@@ -405,8 +406,7 @@ func handleChatStreaming(
                     ]
                     if let logData = try? JSONSerialization.data(withJSONObject: logResp),
                        let logStr = String(data: logData, encoding: .utf8) {
-                        print("srv  log_server_r: response: \(logStr)")
-                        fflush(stdout)
+                        Log.debug("srv  log_server_r: response: \(logStr)")
                     }
                 }
             }
@@ -457,8 +457,8 @@ func handleChatNonStreaming(
                 let prefillDur = Date().timeIntervalSince(prefillStart)
                 let prefillTokPerSec = prefillDur > 0 ? Double(promptTokenCount) / prefillDur : 0
                 let memSnap = MemoryUtils.snapshot()
-                print("srv  slot update: id 0 | prefill done | n_tokens=\(promptTokenCount), t=\(String(format: "%.2f", prefillDur))s, \(String(format: "%.1f", prefillTokPerSec))t/s | OS_RAM=\(String(format: "%.1f", memSnap.os))GB | MEM_DEMAND=\(String(format: "%.1f", memSnap.demand))GB | GPU_MEM=\(String(format: "%.1f", memSnap.gpu))GB")
-                print("srv  generate: id 0 | ", terminator: "")
+                Log.debug("srv  slot update: id 0 | prefill done | n_tokens=\(promptTokenCount), t=\(String(format: "%.2f", prefillDur))s, \(String(format: "%.1f", prefillTokPerSec))t/s | OS_RAM=\(String(format: "%.1f", memSnap.os))GB | MEM_DEMAND=\(String(format: "%.1f", memSnap.demand))GB | GPU_MEM=\(String(format: "%.1f", memSnap.gpu))GB")
+                Log.debug("srv  generate: id 0")
                 if let onPrefillDone { await onPrefillDone() }
                 firstToken = false
             }
@@ -478,7 +478,7 @@ func handleChatNonStreaming(
     }
     print("")
     let postMemSnap = MemoryUtils.snapshot()
-    print("srv  slot done: id 0 | gen_tokens=\(completionTokenCount) | OS_RAM=\(String(format: "%.1f", postMemSnap.os))GB | MEM_DEMAND=\(String(format: "%.1f", postMemSnap.demand))GB | GPU_MEM=\(String(format: "%.1f", postMemSnap.gpu))GB")
+    Log.debug("srv  slot done: id 0 | gen_tokens=\(completionTokenCount) | OS_RAM=\(String(format: "%.1f", postMemSnap.os))GB | MEM_DEMAND=\(String(format: "%.1f", postMemSnap.demand))GB | GPU_MEM=\(String(format: "%.1f", postMemSnap.gpu))GB")
     let duration = Date().timeIntervalSince(genStart)
     await stats.requestFinished(tokens: completionTokenCount, duration: duration)
     await semaphore.signal()
@@ -541,8 +541,7 @@ func handleChatNonStreaming(
     )
     let encoded = try JSONEncoder().encode(resp)
     if let responseStr = String(data: encoded, encoding: .utf8) {
-        print("srv  log_server_r: response: \(responseStr)")
-        fflush(stdout)
+        Log.debug("srv  log_server_r: response: \(responseStr)")
     }
     return Response(
         status: .ok,

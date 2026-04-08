@@ -1,4 +1,5 @@
 import Foundation
+import Logging
 import MLX
 import MLXLMCommon
 
@@ -77,7 +78,7 @@ actor PromptCache {
             for layer in cache { layer.trim(excess) }
         }
         hits += 1
-        print("[SwiftLM] \u{1F5C2} Prompt cache HIT: \(matchLen)/\(newTokens.count) tokens reused (\(excess > 0 ? "partial" : "full") match)")
+        Log.info("Prompt cache HIT: \(matchLen)/\(newTokens.count) tokens reused (\(excess > 0 ? "partial" : "full") match)")
         return matchLen
     }
 

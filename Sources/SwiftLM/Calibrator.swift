@@ -25,6 +25,7 @@
 ///   ```
 
 import Foundation
+import Logging
 import MLX
 import MLXLMCommon
 
@@ -139,7 +140,7 @@ enum Calibrator {
             decoder.dateDecodingStrategy = .iso8601
             return try decoder.decode(WisdomEntry.self, from: data)
         } catch {
-            print("[SwiftLM] ⚠️  Failed to load wisdom: \(error.localizedDescription)")
+            Log.warning("Failed to load wisdom: \(error.localizedDescription)")
             return nil
         }
     }
@@ -190,7 +191,7 @@ enum Calibrator {
         contextSize: Int = 4096
     ) async throws -> WisdomEntry {
         let startTime = Date()
-        print("[SwiftLM] 📊 Calibrating... (this only happens once per model × hardware)")
+        Log.info("Calibrating... (this only happens once per model x hardware)")
         
         // Determine trial cache limits based on available memory
         let systemRAMBytes = Int(ProcessInfo.processInfo.physicalMemory)
@@ -246,7 +247,7 @@ enum Calibrator {
         let maxTokens = 30
         
         for (idx, trial) in trials.enumerated() {
-            print("[SwiftLM]   Trial \(idx + 1)/\(trials.count): \(trial.label) (\(trial.cacheLimitBytes / (1024*1024))MB)")
+            Log.info("Trial \(idx + 1)/\(trials.count): \(trial.label) (\(trial.cacheLimitBytes / (1024*1024))MB)")
             
             // Set cache limit for this trial
             if trial.cacheLimitBytes > 0 {
@@ -264,13 +265,13 @@ enum Calibrator {
             )
             
             if let result = result {
-                print("[SwiftLM]     → \(String(format: "%.1f", result.tokPerSec)) tok/s decode, \(String(format: "%.0f", result.ttftMs))ms TTFT")
+                Log.info("\(String(format: "%.1f", result.tokPerSec)) tok/s decode, \(String(format: "%.0f", result.ttftMs))ms TTFT")
                 
                 if bestTrial == nil || result.tokPerSec > bestTrial!.tokPerSec {
                     bestTrial = (trial, result.tokPerSec, result.prefillTokPerSec, result.ttftMs)
                 }
             } else {
-                print("[SwiftLM]     → failed, skipping")
+                Log.warning("Trial failed, skipping")
             }
         }
         
@@ -302,9 +303,9 @@ enum Calibrator {
         
         try saveWisdom(entry)
         
-        print("[SwiftLM] 📊 Calibration complete in \(String(format: "%.1f", elapsed))s")
-        print("[SwiftLM]    Winner: \(best.trial.label) → \(String(format: "%.1f", best.tokPerSec)) tok/s")
-        print("[SwiftLM]    Saved to ~/.swiftlm/wisdom/")
+        Log.info("Calibration complete in \(String(format: "%.1f", elapsed))s")
+        Log.info("Winner: \(best.trial.label) -- \(String(format: "%.1f", best.tokPerSec)) tok/s")
+        Log.info("Saved to ~/.swiftlm/wisdom/")
         
         return entry
     }

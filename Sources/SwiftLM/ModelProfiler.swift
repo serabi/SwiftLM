@@ -11,6 +11,7 @@
 //   ModelProfiler.printReport(plan: plan, model: profile, system: system)
 
 import Foundation
+import Logging
 import MLX
 
 // MARK: - Model Profile

@@ -7,6 +7,7 @@ import ArgumentParser
 import Foundation
 import Hummingbird
 import Hub
+import Logging
 import MLX
 import MLXLLM
 import MLXLMCommon
@@ -15,7 +16,7 @@ import MLXVLM
 struct ServerBootstrap {
 
     static func start(options: MLXServer) async throws {
-        print("[SwiftLM] Loading model: \(options.model)")
+        Log.info("Loading model: \(options.model)")
         let modelId = options.model
 
         // Load model
@@ -25,7 +26,7 @@ struct ServerBootstrap {
             var isDir: ObjCBool = false
             fileManager.fileExists(atPath: modelId, isDirectory: &isDir)
             if isDir.boolValue {
-                print("[SwiftLM] Loading from local directory: \(modelId)")
+                Log.info("Loading from local directory: \(modelId)")
                 modelConfig = ModelConfiguration(directory: URL(filePath: modelId))
             } else {
                 modelConfig = ModelConfiguration(id: modelId)
@@ -49,7 +50,7 @@ struct ServerBootstrap {
                 useDirectIO: true
             )
             setenv("MLX_MAX_OPS_PER_BUFFER", "50", 1)
-            print("[SwiftLM] Enabled Async SSD Streaming on directory: \(modelDir.lastPathComponent)")
+            Log.info("Enabled Async SSD Streaming on directory: \(modelDir.lastPathComponent)")
         }
 
         var partitionPlan: PartitionPlan?
@@ -69,36 +70,36 @@ struct ServerBootstrap {
             // Apply memory strategy
             switch plan.strategy {
             case .fullGPU:
-                print("[SwiftLM] \(plan.strategy.emoji) Memory strategy: FULL GPU (\(String(format: "%.1f", plan.weightMemoryGB))GB model, \(String(format: "%.1f", system.availableRAMGB))GB available)")
+                Log.info("Memory strategy: FULL GPU (\(String(format: "%.1f", plan.weightMemoryGB))GB model, \(String(format: "%.1f", system.availableRAMGB))GB available)")
             case .swapAssisted:
                 if options.streamExperts {
                     let physicalBudget = Int(Double(system.totalRAMBytes) * 0.85) - (4 * 1024 * 1024 * 1024)
                     Memory.cacheLimit = physicalBudget
                     Memory.memoryLimit = 200 * 1024 * 1024 * 1024
-                    print("[SwiftLM] Memory strategy: SSD STREAMING (page-cache managed, \(physicalBudget / (1024*1024*1024))GB RAM budget, no swap)")
+                    Log.info("Memory strategy: SSD STREAMING (page-cache managed, \(physicalBudget / (1024*1024*1024))GB RAM budget, no swap)")
                 } else {
                     Memory.cacheLimit = plan.recommendedCacheLimit
-                    print("[SwiftLM] \(plan.strategy.emoji) Memory strategy: SWAP-ASSISTED (\(String(format: "%.1f", plan.overcommitRatio))x overcommit, cache limited to \(plan.recommendedCacheLimit / (1024*1024))MB)")
-                    for w in plan.warnings { print("[SwiftLM]    \(w)") }
+                    Log.info("Memory strategy: SWAP-ASSISTED (\(String(format: "%.1f", plan.overcommitRatio))x overcommit, cache limited to \(plan.recommendedCacheLimit / (1024*1024))MB)")
+                    for w in plan.warnings { Log.info("   \(w)") }
                 }
             case .layerPartitioned:
                 if options.streamExperts {
                     let physicalBudget = Int(Double(system.totalRAMBytes) * 0.85) - (4 * 1024 * 1024 * 1024)
                     Memory.cacheLimit = physicalBudget
                     Memory.memoryLimit = 200 * 1024 * 1024 * 1024
-                    print("[SwiftLM] Memory strategy: SSD STREAMING (page-cache managed, \(physicalBudget / (1024*1024*1024))GB RAM budget, no swap)")
+                    Log.info("Memory strategy: SSD STREAMING (page-cache managed, \(physicalBudget / (1024*1024*1024))GB RAM budget, no swap)")
                 } else {
                     Memory.cacheLimit = plan.recommendedCacheLimit
-                    print("[SwiftLM] \(plan.strategy.emoji) Memory strategy: LAYER PARTITIONED (\(plan.recommendedGPULayers)/\(plan.totalLayers) GPU layers, cache limited to \(plan.recommendedCacheLimit / (1024*1024))MB)")
-                    for w in plan.warnings { print("[SwiftLM]    \(w)") }
+                    Log.info("Memory strategy: LAYER PARTITIONED (\(plan.recommendedGPULayers)/\(plan.totalLayers) GPU layers, cache limited to \(plan.recommendedCacheLimit / (1024*1024))MB)")
+                    for w in plan.warnings { Log.info("   \(w)") }
                 }
             case .tooLarge:
                 Memory.cacheLimit = plan.recommendedCacheLimit
-                print("[SwiftLM] \(plan.strategy.emoji) WARNING: Model is \(String(format: "%.1f", plan.overcommitRatio))x system RAM. Loading will be extremely slow.")
-                for w in plan.warnings { print("[SwiftLM]    \(w)") }
+                Log.warning("Model is \(String(format: "%.1f", plan.overcommitRatio))x system RAM. Loading will be extremely slow.")
+                for w in plan.warnings { Log.warning("   \(w)") }
             }
         } else if options.info {
-            print("[SwiftLM] Model not yet downloaded. Run without --info to download first, or provide a local path.")
+            Log.info("Model not yet downloaded. Run without --info to download first, or provide a local path.")
             return
         }
 
@@ -107,22 +108,22 @@ struct ServerBootstrap {
         if let gpuLayersArg = options.gpuLayers {
             if gpuLayersArg == "auto" {
                 requestedGPULayers = partitionPlan?.recommendedGPULayers
-                print("[SwiftLM] --gpu-layers auto -> \(requestedGPULayers.map(String.init) ?? "all") layers on GPU")
+                Log.info("--gpu-layers auto -> \(requestedGPULayers.map(String.init) ?? "all") layers on GPU")
             } else if let n = Int(gpuLayersArg) {
                 requestedGPULayers = n
-                print("[SwiftLM] --gpu-layers \(n) -> \(n) layers on GPU")
+                Log.info("--gpu-layers \(n) -> \(n) layers on GPU")
             } else {
-                print("[SwiftLM] Warning: --gpu-layers must be 'auto' or an integer, got '\(gpuLayersArg)'. Using all GPU.")
+                Log.warning("--gpu-layers must be 'auto' or an integer, got '\(gpuLayersArg)'. Using all GPU.")
             }
         } else if let plan = partitionPlan,
                   (plan.strategy == .layerPartitioned || plan.strategy == .swapAssisted),
                   plan.overcommitRatio > 1.0 {
             if options.streamExperts {
-                print("[SwiftLM] SSD Streaming active: Bypassing CPU auto-partitioning (forcing all layers to GPU)")
+                Log.info("SSD Streaming active: Bypassing CPU auto-partitioning (forcing all layers to GPU)")
                 partitionPlan?.gpuLayers = plan.totalLayers
             } else {
                 requestedGPULayers = plan.recommendedGPULayers
-                print("[SwiftLM] Auto-partitioning: \(plan.recommendedGPULayers)/\(plan.totalLayers) layers on GPU")
+                Log.info("Auto-partitioning: \(plan.recommendedGPULayers)/\(plan.totalLayers) layers on GPU")
             }
         }
 
@@ -139,7 +140,7 @@ struct ServerBootstrap {
             .appendingPathComponent("MLX", isDirectory: true)
             .appendingPathComponent("HuggingFace", isDirectory: true)
         if isVision {
-            print("[SwiftLM] Loading VLM (vision-language model)...")
+            Log.info("Loading VLM (vision-language model)...")
             let downloader = HubDownloader(hub: HubApi(downloadBase: cacheRoot))
             container = try await VLMModelFactory.shared.loadContainer(
                 from: downloader,
@@ -159,7 +160,7 @@ struct ServerBootstrap {
             }
         }
 
-        print("[SwiftLM] Loaded model configuration. Inferred tool call format: \(String(describing: await container.configuration.toolCallFormat))")
+        Log.info("Loaded model configuration. Inferred tool call format: \(String(describing: await container.configuration.toolCallFormat))")
 
         // Apply GPU/CPU layer partitioning
         if let gpuCount = requestedGPULayers {
@@ -167,10 +168,10 @@ struct ServerBootstrap {
             if let actual {
                 let total = partitionPlan?.totalLayers ?? actual
                 let cpuCount = total - actual
-                print("[SwiftLM] Layer split active: \(actual) GPU / \(cpuCount) CPU")
+                Log.info("Layer split active: \(actual) GPU / \(cpuCount) CPU")
                 partitionPlan?.gpuLayers = actual
             } else {
-                print("[SwiftLM] Model does not support layer partitioning (architecture not yet adapted)")
+                Log.warning("Model does not support layer partitioning (architecture not yet adapted)")
             }
         }
 
@@ -178,9 +179,9 @@ struct ServerBootstrap {
         if options.streamExperts {
             let streamingEnabled = await container.setStreamExperts(true)
             if streamingEnabled {
-                print("[SwiftLM] SSD Expert Streaming enabled (lazy load + layer-sync)")
+                Log.info("SSD Expert Streaming enabled (lazy load + layer-sync)")
             } else {
-                print("[SwiftLM] Model does not support SSD expert streaming")
+                Log.warning("Model does not support SSD expert streaming")
             }
         }
 
@@ -197,13 +198,13 @@ struct ServerBootstrap {
                 if wisdom.cacheLimit > 0 {
                     Memory.cacheLimit = wisdom.cacheLimit
                 }
-                print("[SwiftLM] Loaded wisdom: \(String(format: "%.1f", wisdom.tokPerSec)) tok/s, cache=\(wisdom.cacheLimit / (1024*1024))MB (calibrated \(wisdom.calibratedAt.formatted(.relative(presentation: .named))))")
+                Log.info("Loaded wisdom: \(String(format: "%.1f", wisdom.tokPerSec)) tok/s, cache=\(wisdom.cacheLimit / (1024*1024))MB (calibrated \(wisdom.calibratedAt.formatted(.relative(presentation: .named))))")
             }
         } else if options.streamExperts {
-            print("[SwiftLM] Auto-calibration (Wisdom) bypassed for SSD Streaming")
+            Log.info("Auto-calibration (Wisdom) bypassed for SSD Streaming")
         }
 
-        print("[SwiftLM] Model loaded. Starting HTTP server on \(options.host):\(options.port)")
+        Log.info("Model loaded. Starting HTTP server on \(options.host):\(options.port)")
 
         // Capture CLI defaults into a shared config
         let config = ServerConfig(
@@ -228,7 +229,7 @@ struct ServerBootstrap {
             let bytes = memLimitMB * 1024 * 1024
             Memory.memoryLimit = bytes
             Memory.cacheLimit = bytes
-            print("[SwiftLM] Memory limit set to \(memLimitMB)MB (overrides wisdom)")
+            Log.info("Memory limit set to \(memLimitMB)MB (overrides wisdom)")
         }
 
         // Concurrency limiter
@@ -245,7 +246,7 @@ struct ServerBootstrap {
         let thinkingStr = config.thinking ? "enabled" : "disabled"
         let ssdStr = options.streamExperts ? "enabled" : "disabled"
         let turboKVStr = config.turboKV ? "enabled" : "disabled"
-        print("[SwiftLM] Config: ctx_size=\(ctxSizeStr), temp=\(config.temp), top_p=\(config.topP), repeat_penalty=\(penaltyStr), parallel=\(parallelSlots), cors=\(corsStr), mem_limit=\(memLimitStr), auth=\(authStr), thinking=\(thinkingStr), ssd_stream=\(ssdStr), turbo_kv=\(turboKVStr)")
+        Log.info("Config: ctx_size=\(ctxSizeStr), temp=\(config.temp), top_p=\(config.topP), repeat_penalty=\(penaltyStr), parallel=\(parallelSlots), cors=\(corsStr), mem_limit=\(memLimitStr), auth=\(authStr), thinking=\(thinkingStr), ssd_stream=\(ssdStr), turbo_kv=\(turboKVStr)")
 
         // Build router
         let promptCache = PromptCache()
@@ -268,7 +269,7 @@ struct ServerBootstrap {
             configuration: .init(address: .hostname(options.host, port: options.port))
         )
 
-        print("[SwiftLM] Ready. Listening on http://\(options.host):\(options.port)")
+        Log.info("Ready. Listening on http://\(options.host):\(options.port)")
 
         // Emit machine-readable ready event for Aegis integration
         var readyEvent: [String: Any] = [
