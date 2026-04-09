@@ -23,3 +23,10 @@ sample.txt
 tmp/
 /homesec-benchmark/
 LocalPackages/
+
+# Benchmark / profiling results (machine-specific, not for public repo)
+profiling_results*.md
+benchmark_matrix_report.md
+
+# Aider config (user-specific)
+.aider*

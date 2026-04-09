@@ -18,7 +18,7 @@ CONFIGS = [
 
 SWIFTLM_PATH = ".build/arm64-apple-macosx/release/SwiftLM"
 
-def poll_health(port=5413, timeout=30):
+def poll_health(port=5413, timeout=300):
     start = time.time()
     url = f"http://127.0.0.1:{port}/health"
     while time.time() - start < timeout:
@@ -112,7 +112,7 @@ def extract_os_ram(log_path):
     return "N/A"
 
 def main():
-    parser = argparse.ArgumentParser(description="Aegis-AI Physical Model Profiler")
+    parser = argparse.ArgumentParser(description="SwiftLM Model Profiler")
     parser.add_argument("--model", required=True, help="Model ID (e.g. gemma-4-26b-a4b-it-4bit)")
     parser.add_argument("--out", default="./profiling_results.md", help="Output markdown file path")
     parser.add_argument("--contexts", default="512", help="Comma-separated list of context lengths to test (e.g. 512,40000,100000)")
@@ -150,9 +150,23 @@ def main():
         with open(log_path, "w") as root_log:
             server_proc = subprocess.Popen(cmd, stdout=root_log, stderr=subprocess.STDOUT)
         
-        if not poll_health(timeout=60):
-            print("Server failed to start.")
-            server_proc.terminate()
+        if not poll_health(timeout=300):
+            alive = server_proc.poll() is None
+            if alive:
+                print("Server did not become ready within 300s (may still be downloading the model).")
+                print("Hint: First run for a model requires downloading from HuggingFace.")
+                server_proc.terminate()
+            else:
+                print(f"Server process exited with code {server_proc.returncode}.")
+            print(f"\n--- Last 20 lines of {log_path} ---")
+            try:
+                with open(log_path, "r") as lf:
+                    lines = lf.readlines()
+                    for line in lines[-20:]:
+                        print(f"  {line.rstrip()}")
+            except Exception:
+                print("  (could not read log file)")
+            print("---\n")
             continue
             
         static_mem = extract_base_memory(log_path)
@@ -164,7 +178,8 @@ def main():
             # Wait for server to flush post-generation logs
             time.sleep(1)
             
-            os_ram = extract_os_ram(log_path)
+            swiftlm_log = os.path.expanduser("~/.swiftlm/server.log")
+            os_ram = extract_os_ram(swiftlm_log)
             
             # Query Apple GPU driver for the TOTAL allocated memory (physical + swapped)
             gpu_alloc, gpu_in_use = get_gpu_alloc_gb()

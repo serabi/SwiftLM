@@ -4,7 +4,7 @@
 cd "$(dirname "$0")"
 
 echo "=============================================="
-echo "    Aegis-AI MLX Profiling Benchmark Suite    "
+echo "    SwiftLM MLX Profiling Benchmark Suite      "
 echo "=============================================="
 echo ""
 
